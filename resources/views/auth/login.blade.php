@@ -19,9 +19,7 @@
     
     <!-- Header Logo & Title -->
     <div class="text-center mb-8">
-        <div class="brand-icon w-12 h-12 text-xl mx-auto mb-3">
-            K
-        </div>
+        <img src="{{ asset('images/kawung.png') }}" alt="Logo Kawungpitu" class="w-14 h-14 mx-auto block object-contain mb-3"/>
         <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Kawungpitu Institute</h1>
         <p class="text-xs text-slate-500 font-medium mt-1">Internal Finance Portal</p>
     </div>
