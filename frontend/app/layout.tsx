@@ -26,9 +26,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${poppins.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <head>
+        <link 
+          rel="stylesheet" 
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" 
+        />
+      </head>
+      <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900">{children}</body>
     </html>
   );
 }
