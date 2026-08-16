@@ -7,20 +7,20 @@ export default function TransactionsPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
-      
+
       {/* Page Header & Action Buttons */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="font-headline-md text-headline-md text-on-surface">Semua Transaksi</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Semua Transaksi</h2>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button className="bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors px-4 py-2 rounded-lg flex items-center gap-2 font-body-sm text-body-sm cursor-pointer">
+          <button className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
             Export
           </button>
-          <button className="bg-error-container text-on-error-container hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 font-body-sm text-body-sm cursor-pointer">
+          <button className="bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove</span>
             Input Expense
           </button>
-          <button className="bg-primary-container text-on-primary-container hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 font-body-sm text-body-sm cursor-pointer">
+          <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             Input Income
           </button>
@@ -28,28 +28,28 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filters Section */}
-      <div className="bg-surface-container border border-outline-variant rounded-xl p-4 flex flex-wrap gap-4 items-end">
+      <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">Search</label>
-          <input 
-            type="text" 
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Description, ID..." 
-            className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container font-body-sm text-body-sm placeholder-on-surface-variant"
+            placeholder="Description, ID..."
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
           />
         </div>
         <div className="w-40">
-          <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">Type</label>
-          <select className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container font-body-sm text-body-sm appearance-none cursor-pointer">
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type</label>
+          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>All Types</option>
             <option>Income</option>
             <option>Expense</option>
           </select>
         </div>
         <div className="w-48">
-          <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">Category</label>
-          <select className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container font-body-sm text-body-sm appearance-none cursor-pointer">
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>All Categories</option>
             <option>Operations</option>
             <option>Marketing</option>
@@ -57,25 +57,25 @@ export default function TransactionsPage() {
           </select>
         </div>
         <div className="w-56">
-          <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">Date Range</label>
-          <input 
-            type="date" 
-            className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container font-body-sm text-body-sm cursor-pointer"
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date Range</label>
+          <input
+            type="date"
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
           />
         </div>
-        <button className="bg-surface border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors p-2 rounded-lg flex items-center justify-center h-[38px] w-[38px] cursor-pointer">
+        <button className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors p-2 rounded-lg flex items-center justify-center h-[38px] w-[38px] cursor-pointer">
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
         </button>
       </div>
 
       {/* Table Card */}
-      <div className="bg-[#1E293B] border border-[#334155] rounded-xl overflow-hidden shadow-[0_12px_24px_rgba(0,0,0,0.4)]">
+      <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-surface border-b border-[#334155] font-label-caps text-label-caps text-on-surface-variant">
+              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="p-3 w-12 text-center">
-                  <input className="rounded bg-surface-container border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </th>
                 <th className="p-3">Tanggal</th>
                 <th className="p-3">Keterangan</th>
@@ -85,103 +85,103 @@ export default function TransactionsPage() {
                 <th className="p-3 w-16"></th>
               </tr>
             </thead>
-            <tbody className="font-body-sm text-body-sm divide-y divide-[#334155]">
+            <tbody className="text-sm divide-y divide-slate-100">
               {/* Row 1 */}
-              <tr className="hover:bg-surface-container-highest transition-colors group">
+              <tr className="hover:bg-slate-50 transition-colors group">
                 <td className="p-3 text-center">
-                  <input className="rounded bg-surface border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </td>
-                <td className="p-3 text-on-surface-variant">2023-10-27</td>
-                <td className="p-3 font-medium text-on-surface">Payment for Services</td>
+                <td className="p-3 text-slate-500">2023-10-27</td>
+                <td className="p-3 font-medium text-slate-900">Payment for Services</td>
                 <td className="p-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary/10 text-secondary">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
                     Income
                   </span>
                 </td>
-                <td className="p-3 text-on-surface-variant">BCA Utama</td>
-                <td className="p-3 text-right font-data-mono-md text-emerald-400">+ Rp 15.000.000</td>
+                <td className="p-3 text-slate-500">BCA Utama</td>
+                <td className="p-3 text-right font-mono text-emerald-600 font-medium">+ Rp 15.000.000</td>
                 <td className="p-3 text-center">
-                  <button className="text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                  <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>more_vert</span>
                   </button>
                 </td>
               </tr>
               {/* Row 2 */}
-              <tr className="hover:bg-surface-container-highest transition-colors group">
+              <tr className="hover:bg-slate-50 transition-colors group">
                 <td className="p-3 text-center">
-                  <input className="rounded bg-surface border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </td>
-                <td className="p-3 text-on-surface-variant">2023-10-26</td>
-                <td className="p-3 font-medium text-on-surface">Office Supplies - October</td>
+                <td className="p-3 text-slate-500">2023-10-26</td>
+                <td className="p-3 font-medium text-slate-900">Office Supplies - October</td>
                 <td className="p-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-tertiary/10 text-tertiary">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
                     Operations
                   </span>
                 </td>
-                <td className="p-3 text-on-surface-variant">Kas Kecil</td>
-                <td className="p-3 text-right font-data-mono-md text-error">- Rp 1.250.000</td>
+                <td className="p-3 text-slate-500">Kas Kecil</td>
+                <td className="p-3 text-right font-mono text-rose-600 font-medium">- Rp 1.250.000</td>
                 <td className="p-3 text-center">
-                  <button className="text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                  <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>more_vert</span>
                   </button>
                 </td>
               </tr>
               {/* Row 3 */}
-              <tr className="hover:bg-surface-container-highest transition-colors group">
+              <tr className="hover:bg-slate-50 transition-colors group">
                 <td className="p-3 text-center">
-                  <input className="rounded bg-surface border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </td>
-                <td className="p-3 text-on-surface-variant">2023-10-25</td>
-                <td className="p-3 font-medium text-on-surface">Client Reimbursement #INV-892</td>
+                <td className="p-3 text-slate-500">2023-10-25</td>
+                <td className="p-3 font-medium text-slate-900">Client Reimbursement #INV-892</td>
                 <td className="p-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary/10 text-secondary">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
                     Income
                   </span>
                 </td>
-                <td className="p-3 text-on-surface-variant">Mandiri Bisnis</td>
-                <td className="p-3 text-right font-data-mono-md text-emerald-400">+ Rp 8.400.000</td>
+                <td className="p-3 text-slate-500">Mandiri Bisnis</td>
+                <td className="p-3 text-right font-mono text-emerald-600 font-medium">+ Rp 8.400.000</td>
                 <td className="p-3 text-center">
-                  <button className="text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                  <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>more_vert</span>
                   </button>
                 </td>
               </tr>
               {/* Row 4 */}
-              <tr className="hover:bg-surface-container-highest transition-colors group">
+              <tr className="hover:bg-slate-50 transition-colors group">
                 <td className="p-3 text-center">
-                  <input className="rounded bg-surface border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </td>
-                <td className="p-3 text-on-surface-variant">2023-10-24</td>
-                <td className="p-3 font-medium text-on-surface">Software Subscriptions (AWS, GitHub)</td>
+                <td className="p-3 text-slate-500">2023-10-24</td>
+                <td className="p-3 font-medium text-slate-900">Software Subscriptions (AWS, GitHub)</td>
                 <td className="p-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-tertiary/10 text-tertiary">
-                    IT & Tech
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                    IT &amp; Tech
                   </span>
                 </td>
-                <td className="p-3 text-on-surface-variant">Kartu Kredit Perusahaan</td>
-                <td className="p-3 text-right font-data-mono-md text-error">- Rp 3.850.000</td>
+                <td className="p-3 text-slate-500">Kartu Kredit Perusahaan</td>
+                <td className="p-3 text-right font-mono text-rose-600 font-medium">- Rp 3.850.000</td>
                 <td className="p-3 text-center">
-                  <button className="text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                  <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>more_vert</span>
                   </button>
                 </td>
               </tr>
               {/* Row 5 */}
-              <tr className="hover:bg-surface-container-highest transition-colors group">
+              <tr className="hover:bg-slate-50 transition-colors group">
                 <td className="p-3 text-center">
-                  <input className="rounded bg-surface border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer" type="checkbox" />
+                  <input className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                 </td>
-                <td className="p-3 text-on-surface-variant">2023-10-22</td>
-                <td className="p-3 font-medium text-on-surface">Consulting Retainer - Q4</td>
+                <td className="p-3 text-slate-500">2023-10-22</td>
+                <td className="p-3 font-medium text-slate-900">Consulting Retainer - Q4</td>
                 <td className="p-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary/10 text-secondary">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
                     Income
                   </span>
                 </td>
-                <td className="p-3 text-on-surface-variant">BCA Utama</td>
-                <td className="p-3 text-right font-data-mono-md text-emerald-400">+ Rp 25.000.000</td>
+                <td className="p-3 text-slate-500">BCA Utama</td>
+                <td className="p-3 text-right font-mono text-emerald-600 font-medium">+ Rp 25.000.000</td>
                 <td className="p-3 text-center">
-                  <button className="text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                  <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>more_vert</span>
                   </button>
                 </td>
@@ -191,20 +191,20 @@ export default function TransactionsPage() {
         </div>
 
         {/* Pagination Footer */}
-        <div className="bg-surface border-t border-[#334155] p-4 flex items-center justify-between">
-          <span className="text-on-surface-variant font-body-sm text-body-sm">
+        <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between">
+          <span className="text-slate-500 text-sm">
             Menampilkan 1-10 dari 156 transaksi
           </span>
           <div className="flex gap-1">
-            <button className="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50 cursor-pointer" disabled>
+            <button className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer" disabled>
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
             </button>
-            <button className="px-3 py-1 rounded bg-secondary-container text-on-secondary-container font-body-sm text-body-sm font-medium cursor-pointer">1</button>
-            <button className="px-3 py-1 rounded text-on-surface-variant hover:bg-surface-container transition-colors font-body-sm text-body-sm cursor-pointer">2</button>
-            <button className="px-3 py-1 rounded text-on-surface-variant hover:bg-surface-container transition-colors font-body-sm text-body-sm cursor-pointer">3</button>
-            <span className="px-2 py-1 text-on-surface-variant">...</span>
-            <button className="px-3 py-1 rounded text-on-surface-variant hover:bg-surface-container transition-colors font-body-sm text-body-sm cursor-pointer">16</button>
-            <button className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer">
+            <button className="px-3 py-1 rounded bg-primary/10 text-primary font-medium text-sm cursor-pointer">1</button>
+            <button className="px-3 py-1 rounded text-slate-500 hover:bg-slate-100 transition-colors text-sm cursor-pointer">2</button>
+            <button className="px-3 py-1 rounded text-slate-500 hover:bg-slate-100 transition-colors text-sm cursor-pointer">3</button>
+            <span className="px-2 py-1 text-slate-400">...</span>
+            <button className="px-3 py-1 rounded text-slate-500 hover:bg-slate-100 transition-colors text-sm cursor-pointer">16</button>
+            <button className="p-1 rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
             </button>
           </div>
