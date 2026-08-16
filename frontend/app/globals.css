@@ -44,6 +44,11 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* Layout tokens */
+  --spacing-sidebar-width: 260px;
+  --spacing-sidebar-collapsed: 72px;
+  --spacing-container-padding: 24px;
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -52,7 +57,7 @@
 }
 
 :root {
-  --background: #fcf8f8;
+  --background: #ffffff;
   --foreground: #1c0a0b;
   --card: #ffffff;
   --card-foreground: #1c0a0b;
