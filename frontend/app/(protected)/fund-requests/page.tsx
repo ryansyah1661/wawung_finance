@@ -6,7 +6,7 @@ export default function FundRequestsPage() {
   const [approvalNote, setApprovalNote] = useState('');
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6">
+    <div className="max-w-300 mx-auto space-y-6">
       
       {/* Page Header & Print Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -139,16 +139,16 @@ export default function FundRequestsPage() {
           {/* Timeline Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-6">Timeline</h3>
-            <div className="relative pl-4 space-y-6 before:absolute before:inset-y-2 before:left-[7px] before:w-px before:bg-slate-200">
+            <div className="relative pl-4 space-y-6 before:absolute before:inset-y-2 before:left-1.75 before:w-px before:bg-slate-200">
               
               <div className="relative">
-                <div className="absolute -left-[23px] w-3 h-3 bg-primary rounded-full ring-4 ring-white shadow-sm"></div>
+                <div className="absolute -left-5.75 w-3 h-3 bg-primary rounded-full ring-4 ring-white shadow-sm"></div>
                 <p className="text-sm text-slate-900 font-medium">Pending Approval</p>
                 <p className="text-xs text-slate-500 mt-0.5">Menunggu respon Superadmin</p>
               </div>
 
               <div className="relative">
-                <div className="absolute -left-[23px] w-3 h-3 bg-slate-100 border-2 border-slate-300 rounded-full ring-4 ring-white"></div>
+                <div className="absolute -left-5.75 w-3 h-3 bg-slate-100 border-2 border-slate-300 rounded-full ring-4 ring-white"></div>
                 <p className="text-sm text-slate-500 font-medium">Created</p>
                 <p className="text-xs text-slate-500 mt-0.5">Oleh Dina Rahmawati</p>
                 <p className="font-mono text-xs text-slate-400 mt-1">Oct 24, 09:45 AM</p>
