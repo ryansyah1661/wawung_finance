@@ -68,7 +68,7 @@ export default function LoginPage() {
           
           {/* Footer Kiri (Diposisikan di bawah dengan absolute agar tetap rapi) */}
           <div className="absolute bottom-8 left-12 xl:left-16 z-10 text-xs text-white/50 font-medium">
-            © 2026 Kawungpitu Institute Finance. Hak cipta dilindungi.
+            © 2026 Kawungpitu Institute Finance. All rights reserved.
           </div>
         </div>
 

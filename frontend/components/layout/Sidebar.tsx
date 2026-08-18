@@ -25,7 +25,7 @@ export default function Sidebar() {
         <img className="w-8 h-8 rounded" src="assets/images/logo-kawung.png" alt="Wawung Finance" />
         <div>
           <h1 className="font-semibold text-primary">Wawung Finance</h1>
-          <p className="text-xs text-on-surface-variant">Internal Finance Portal</p>
+          <p className="text-xs text-muted-foreground">Internal Finance Portal</p>
         </div>
       </div>
 
@@ -38,8 +38,8 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                 active
-                  ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:bg-surface-container-high"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-slate-500 hover:bg-slate-100"
               }`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
