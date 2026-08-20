@@ -1,8 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+
+type TransactionType = 'income' | 'expense';
 
 export default function TransactionsPage() {
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') as TransactionType || 'expense';
+  const [type, setType] = useState<TransactionType>(initialType);
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -16,14 +23,14 @@ export default function TransactionsPage() {
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
             Export
           </button>
-          <button className="bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
+          <Link href="/transactions/income-expense?type=expense" className="bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove</span>
-            Input Expense
-          </button>
-          <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
+              Input Expense
+          </Link>
+          <Link href="/transactions/income-expense?type=income" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             Input Income
-          </button>
+          </Link>
         </div>
       </div>
 

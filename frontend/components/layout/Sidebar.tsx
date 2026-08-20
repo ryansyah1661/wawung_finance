@@ -22,7 +22,7 @@ export default function Sidebar() {
   return (
     <nav className="hidden md:flex flex-col h-screen w-sidebar-width bg-sidebar text-sidebar-foreground fixed left-0 top-0 border-r border-slate-200 z-20 p-2">
       <div className="px-4 py-6 mb-4 flex items-center gap-3">
-        <img className="w-8 h-8 rounded" src="assets/images/logo-kawung.png" alt="Wawung Finance" />
+        <img className="w-8 h-8 rounded" src="/assets/images/logo-kawung.png" alt="Wawung Finance" />
         <div>
           <h1 className="font-semibold text-primary">Wawung Finance</h1>
           <p className="text-xs text-muted-foreground">Internal Finance Portal</p>
