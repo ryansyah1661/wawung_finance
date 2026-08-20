@@ -1,0 +1,142 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+
+export default function NewInventoryItemPage() {
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [location, setLocation] = useState('');
+  const [qty, setQty] = useState('');
+  const [unit, setUnit] = useState('');
+  const [value, setValue] = useState('');
+  const [notes, setNotes] = useState('');
+
+  return (
+    <div className="max-w-200 mx-auto space-y-6">
+
+      {/* Page Header */}
+      <div className="flex items-center gap-3">
+        <Link
+          href="/inventory"
+          className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+        </Link>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Tambah Barang Inventaris</h2>
+          <p className="text-sm text-slate-500">Daftarkan aset atau stok barang baru</p>
+        </div>
+      </div>
+
+      {/* Form Card */}
+      <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-5">
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama Barang</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Contoh: Laptop Dell Latitude 5420"
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kategori</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+            >
+              <option value="">Pilih kategori...</option>
+              <option>Elektronik</option>
+              <option>Furniture</option>
+              <option>ATK</option>
+              <option>Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lokasi Penyimpanan</label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Contoh: Gudang Pusat"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah Stok</label>
+            <input
+              type="number"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="0"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono placeholder-slate-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Satuan</label>
+            <input
+              type="text"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="unit, rim, pcs..."
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nilai/Unit (Rp)</label>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="0"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono placeholder-slate-400"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Catatan (Opsional)</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Kondisi barang, nomor seri, dsb..."
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none h-20 placeholder-slate-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Foto Barang (Opsional)</label>
+          <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-slate-400 text-[28px]">add_a_photo</span>
+            <p className="text-sm text-slate-500">Klik untuk upload foto</p>
+            <p className="text-xs text-slate-400">PNG, JPG maksimal 5MB</p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-3">
+        <Link
+          href="/inventory"
+          className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+        >
+          Batal
+        </Link>
+        <button className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
+          Simpan Barang
+        </button>
+      </div>
+
+    </div>
+  );
+}

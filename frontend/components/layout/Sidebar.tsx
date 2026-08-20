@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/invoices", label: "Invoices", icon: "description" },
   { href: "/reports", label: "Reports", icon: "bar_chart" },
   { href: "/master-data", label: "Master Data", icon: "database" },
+  { href: "/inventory", label: "Inventory", icon: "inventory_2" },
   { href: "/user-management", label: "User Management", icon: "group" },
   { href: "/audit-log", label: "Audit Log", icon: "history" },
   { href: "/settings", label: "Settings", icon: "settings" },
