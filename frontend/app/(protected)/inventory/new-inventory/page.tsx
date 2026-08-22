@@ -11,9 +11,72 @@ export default function NewInventoryItemPage() {
   const [unit, setUnit] = useState('');
   const [value, setValue] = useState('');
   const [notes, setNotes] = useState('');
+  const [savedCode, setSavedCode] = useState<string | null>(null);
+
+  const handleSave = () => {
+    // TODO: replace with real API call to Laravel backend, use the returned code
+    const generatedCode = `INV-A-${Math.floor(100 + Math.random() * 900)}`;
+    setSavedCode(generatedCode);
+  };
+
+  if (savedCode) {
+    const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/inventory/${savedCode}` : '';
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(detailUrl)}`;
+
+    return (
+      <div className="max-w-[600px] mx-auto space-y-6">
+        <div className="text-center space-y-2">
+          <span className="material-symbols-outlined text-emerald-500 text-[40px]">check_circle</span>
+          <h2 className="text-2xl font-bold text-slate-900">Barang Berhasil Ditambahkan</h2>
+          <p className="text-sm text-slate-500">
+            <span className="font-mono font-semibold text-slate-900">{savedCode}</span> — {name || 'Barang baru'}
+          </p>
+        </div>
+
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-8 flex flex-col items-center gap-4">
+          <img src={qrImageUrl} alt={`QR Code ${savedCode}`} className="w-56 h-56" />
+          <p className="text-xs text-slate-400 text-center max-w-xs">
+            Cetak dan tempelkan QR ini di barang. Scan QR akan membuka halaman detail barang ini.
+          </p>
+          <div className="flex gap-3 w-full">
+            <a
+              href={qrImageUrl}
+              download={`qr-${savedCode}.png`}
+              className="flex-1 text-center px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Download QR
+            </a>
+            <button
+              onClick={() => window.print()}
+              className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">print</span>
+              Print
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-3">
+          <Link
+            href={`/inventory/${savedCode}`}
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            Lihat detail barang
+          </Link>
+          <span className="text-slate-300">•</span>
+          <Link
+            href="/inventory"
+            className="text-sm font-semibold text-slate-500 hover:underline"
+          >
+            Kembali ke daftar inventaris
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-200 mx-auto space-y-6">
+    <div className="max-w-[800px] mx-auto space-y-6">
 
       {/* Page Header */}
       <div className="flex items-center gap-3">
@@ -124,6 +187,14 @@ export default function NewInventoryItemPage() {
 
       </div>
 
+      {/* Info Box */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <span className="material-symbols-outlined text-blue-600 text-[20px]">qr_code_2</span>
+        <p className="text-sm text-blue-800">
+          Setelah disimpan, QR code otomatis dibuat untuk barang ini — siap dicetak dan ditempelkan.
+        </p>
+      </div>
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">
         <Link
@@ -132,7 +203,10 @@ export default function NewInventoryItemPage() {
         >
           Batal
         </Link>
-        <button className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
+        <button
+          onClick={handleSave}
+          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm"
+        >
           Simpan Barang
         </button>
       </div>

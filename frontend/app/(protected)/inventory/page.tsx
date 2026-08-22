@@ -86,7 +86,7 @@ export default function InventoryPage() {
 
       {/* Filter Bar */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-50">
+        <div className="flex-1 min-w-[200px]">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
           <input
             type="text"
@@ -129,7 +129,7 @@ export default function InventoryPage() {
                 <th className="p-3 text-right">Stok</th>
                 <th className="p-3 text-right">Nilai/Unit</th>
                 <th className="p-3 text-center">Status</th>
-                <th className="p-3 w-20 text-center">Aksi</th>
+                <th className="p-3 w-24 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
@@ -149,7 +149,14 @@ export default function InventoryPage() {
                       </span>
                     </td>
                     <td className="p-3">
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-center gap-1">
+                        <Link
+                          href={`/inventory/${item.code}`}
+                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          title="Lihat QR & Detail"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>qr_code_2</span>
+                        </Link>
                         <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                         </button>
