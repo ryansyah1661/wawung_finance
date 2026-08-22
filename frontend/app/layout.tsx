@@ -31,7 +31,7 @@ export default function RootLayout({
       <head>
         <link 
           rel="stylesheet" 
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" 
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" 
         />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900">{children}</body>

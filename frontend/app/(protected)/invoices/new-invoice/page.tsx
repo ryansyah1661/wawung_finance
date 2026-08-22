@@ -116,9 +116,12 @@ export default function CreateInvoicePage() {
                 className="w-full sm:w-20 bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono"
               />
               <input
-                type="number"
-                value={item.price}
-                onChange={(e) => updateItem(item.id, 'price', Number(e.target.value))}
+                type="text"
+                value={item.price ? item.price.toLocaleString('id-ID') : ''}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/\D/g, '');
+                  updateItem(item.id, 'price', rawValue ? parseInt(rawValue, 10) : 0);
+                }}
                 placeholder="Harga satuan"
                 className="w-full sm:w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono"
               />

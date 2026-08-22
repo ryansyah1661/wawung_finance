@@ -44,9 +44,12 @@ export default function NewFundRequestPage() {
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah Pengajuan (Rp)</label>
             <input
-              type="number"
+              type="text"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/\D/g, '');
+                setAmount(rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '');
+              }}
               placeholder="0"
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono placeholder-slate-400"
             />

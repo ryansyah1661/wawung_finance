@@ -140,3 +140,10 @@
     @apply font-sans;
   }
 }
+
+.material-symbols-outlined {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 1em;
+  white-space: nowrap;
+}

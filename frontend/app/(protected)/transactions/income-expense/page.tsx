@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type TransactionType = 'income' | 'expense';
 
 export default function InputTransactionPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialType = (searchParams.get('type') as TransactionType) || 'expense';
   const [type, setType] = useState<TransactionType>(initialType);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -74,9 +77,12 @@ export default function InputTransactionPage() {
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah (Rp)</label>
             <input
-              type="number"
+              type="text"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/\D/g, '');
+                setAmount(rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '');
+              }}
               placeholder="0"
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono placeholder-slate-400"
             />
@@ -136,11 +142,27 @@ export default function InputTransactionPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lampiran (Opsional)</label>
-          <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
-            <span className="material-symbols-outlined text-slate-400 text-[28px]">upload_file</span>
-            <p className="text-sm text-slate-500">Klik untuk upload atau drag & drop</p>
-            <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
-          </div>
+          <label className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
+            <input 
+              type="file" 
+              className="hidden" 
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              accept=".png,.jpg,.jpeg,.pdf"
+            />
+            {file ? (
+              <>
+                <span className="material-symbols-outlined text-emerald-500 text-[28px]">check_circle</span>
+                <p className="text-sm text-slate-700 font-medium">{file.name}</p>
+                <p className="text-xs text-slate-400">Klik untuk mengganti file</p>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-slate-400 text-[28px]">upload_file</span>
+                <p className="text-sm text-slate-500">Klik untuk upload atau drag & drop</p>
+                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
+              </>
+            )}
+          </label>
         </div>
 
       </div>
@@ -154,6 +176,24 @@ export default function InputTransactionPage() {
           Batal
         </Link>
         <button
+          onClick={() => {
+            const newTrx = {
+              id: 'TRX-' + Math.floor(Math.random() * 10000),
+              date: date || new Date().toISOString().split('T')[0],
+              description: description || 'Transaksi Baru',
+              category: category || 'Lainnya',
+              account: account || 'Kas',
+              amount: parseInt(amount.replace(/\D/g, '') || '0', 10),
+              type: type === 'income' ? 'Income' : 'Expense'
+            };
+            const existing = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
+            localStorage.setItem('mock_transactions', JSON.stringify([newTrx, ...existing]));
+            
+            setShowSuccessModal(true);
+            setTimeout(() => {
+              router.push('/transactions');
+            }, 2000);
+          }}
           className={`px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors cursor-pointer shadow-sm ${
             type === 'expense' ? 'bg-rose-600 hover:brightness-110' : 'bg-primary hover:brightness-110'
           }`}
@@ -161,6 +201,24 @@ export default function InputTransactionPage() {
           Simpan Transaksi
         </button>
       </div>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">check_circle</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
+            <p className="text-slate-500 mb-6">Transaksi Anda telah berhasil disimpan.</p>
+            <button 
+              onClick={() => router.push('/transactions')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Ke Daftar Transaksi
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
