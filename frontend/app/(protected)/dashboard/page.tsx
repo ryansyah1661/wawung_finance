@@ -74,7 +74,6 @@ export default function SuperadminDashboard() {
     transactions.forEach((t: any) => {
       if (t.date) {
         const d = new Date(t.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
         const monthLabel = monthNames[d.getMonth()];
         if (t.type === 'Income') {
           monthlyIncome[monthLabel] = (monthlyIncome[monthLabel] || 0) + (Number(t.amount) || 0);
@@ -114,7 +113,6 @@ export default function SuperadminDashboard() {
 
     // Load invoices for due dates
     const invoices = JSON.parse(localStorage.getItem('mock_invoices') || '[]');
-    const today = new Date().toISOString().split('T')[0];
     const upcoming = invoices
       .filter((inv: any) => inv.status !== 'Paid' && inv.status !== 'Lunas')
       .slice(0, 3);
@@ -122,25 +120,13 @@ export default function SuperadminDashboard() {
   }, []);
 
   const formatRp = (n: number) => {
-    if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)}B`;
-    if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1)}M`;
-    return `Rp ${n.toLocaleString('id-ID')}`;
+    if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)} M`;
+    if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1)} Jt`;
+    return 'Rp ' + n.toLocaleString('id-ID');
   };
 
   const saldo = totalIncome - totalExpense;
-
-  // Build donut chart gradient
   const totalCatAmount = categoryBreakdown.reduce((s, c) => s + c.amount, 0);
-  let gradientParts: string[] = [];
-  let cumPercent = 0;
-  categoryBreakdown.forEach((cat) => {
-    const pct = totalCatAmount > 0 ? (cat.amount / totalCatAmount) * 100 : 0;
-    gradientParts.push(`${cat.color} ${cumPercent}% ${cumPercent + pct}%`);
-    cumPercent += pct;
-  });
-  const donutGradient = gradientParts.length > 0 
-    ? `conic-gradient(${gradientParts.join(', ')})` 
-    : 'conic-gradient(#e2e8f0 0% 100%)';
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -289,52 +275,57 @@ export default function SuperadminDashboard() {
         </div>
 
         {/* Donut Chart Area */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Komposisi Pengeluaran</h3>
-          <div className="flex-1 flex flex-col items-center justify-center relative">
-            <div className="w-full" style={{ height: 200 }}>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Komposisi Pengeluaran</h3>
+          
+          <div className="flex-1 flex items-center justify-center relative my-2">
+            <div className="w-full relative flex items-center justify-center" style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#e2e8f0'}]}
+                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#f1f5f9'}]}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
+                    innerRadius={68}
+                    outerRadius={88}
                     paddingAngle={categoryBreakdown.length > 1 ? 4 : 0}
                     dataKey="amount"
                     stroke="none"
                   >
-                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#e2e8f0'}]).map((entry, index) => (
+                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#f1f5f9'}]).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                    contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '10px', padding: '8px 12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                     itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
                     formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
                   />
                 </PieChart>
               </ResponsiveContainer>
+              
               {/* Center label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ top: 0, height: 200 }}>
-                <span className="text-slate-400 text-[10px]">Total Keluar</span>
-                <span className="text-sm font-bold text-slate-900 font-mono">{formatRp(totalExpense)}</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">Total Keluar</span>
+                <span className="text-base font-bold text-slate-900 font-mono mt-0.5">{formatRp(totalExpense)}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-y-2.5 gap-x-3">
+          {/* Legend Area */}
+          <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-y-2 gap-x-4">
             {categoryBreakdown.length > 0 ? categoryBreakdown.map((cat) => (
-              <div key={cat.name} className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></span>
-                <span className="text-xs text-slate-700 font-medium truncate">{cat.name}</span>
-                <span className="text-xs text-slate-500 ml-auto font-mono">
+              <div key={cat.name} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 truncate pr-1">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></span>
+                  <span className="text-slate-600 font-medium truncate">{cat.name}</span>
+                </div>
+                <span className="text-slate-900 font-semibold font-mono">
                   {totalCatAmount > 0 ? Math.round((cat.amount / totalCatAmount) * 100) : 0}%
                 </span>
               </div>
             )) : (
-              <div className="col-span-2 text-xs text-slate-400 text-center py-2">Belum ada data pengeluaran</div>
+              <div className="col-span-2 text-xs text-slate-400 text-center py-1">Belum ada data pengeluaran</div>
             )}
           </div>
         </div>
