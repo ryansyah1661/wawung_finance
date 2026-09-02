@@ -1,55 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const REIMBURSEMENTS = [
-  {
-    id: 'RB-2023-045',
-    date: '2023-10-25',
-    employee: 'Siti Nurhaliza',
-    department: 'Sales',
-    description: 'Reimbursement Travel - Client Visit',
-    amount: 3200000,
-    status: 'pending',
-  },
-  {
-    id: 'RB-2023-044',
-    date: '2023-10-24',
-    employee: 'Budi Santoso',
-    department: 'Operations',
-    description: 'Reimbursement Vendor IT',
-    amount: 850000,
-    status: 'pending',
-  },
-  {
-    id: 'RB-2023-043',
-    date: '2023-10-22',
-    employee: 'Dina Rahmawati',
-    department: 'Marketing',
-    description: 'Reimbursement Materi Promosi',
-    amount: 1500000,
-    status: 'approved',
-  },
-  {
-    id: 'RB-2023-042',
-    date: '2023-10-20',
-    employee: 'Ahmad Fauzi',
-    department: 'Finance',
-    description: 'Reimbursement Meeting Client',
-    amount: 620000,
-    status: 'approved',
-  },
-  {
-    id: 'RB-2023-041',
-    date: '2023-10-18',
-    employee: 'Rina Wijaya',
-    department: 'HR',
-    description: 'Reimbursement Training Eksternal',
-    amount: 2100000,
-    status: 'rejected',
-  },
-];
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   pending: { label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -57,12 +9,55 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   rejected: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700' },
 };
 
-function formatRupiah(amount: number) {
-  return `Rp ${amount.toLocaleString('id-ID')}`;
+function formatRupiah(amount: number | string) {
+  const num = typeof amount === 'string' ? parseInt(amount.replace(/\D/g, '') || '0', 10) : amount;
+  return `Rp ${num.toLocaleString('id-ID')}`;
 }
 
 export default function ReimbursementsPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [departmentFilter, setDepartmentFilter] = useState('All Departments');
+  const [requests, setRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    const data = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
+    setRequests(data);
+  }, []);
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const updated = requests.filter(r => r.id !== id);
+    setRequests(updated);
+    localStorage.setItem('mock_reimbursements', JSON.stringify(updated));
+  };
+
+  const handleExport = () => {
+    import('xlsx').then(XLSX => {
+      const worksheet = XLSX.utils.json_to_sheet(requests.map(r => ({
+        ID: r.id,
+        Date: r.date || '',
+        Employee: r.employee || r.requester || '',
+        Department: r.department || '',
+        Description: r.description || '',
+        Amount: r.amount || 0,
+        Status: r.status || 'Pending'
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Reimbursements");
+      XLSX.writeFile(workbook, "reimbursements.xlsx");
+    });
+  };
+
+  const filteredRequests = requests.filter(r => {
+    const matchesSearch = ((r.description?.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                           (r.employee?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                           (r.requester?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                           (r.id?.toLowerCase().includes(searchQuery.toLowerCase())));
+    const matchesStatus = statusFilter === 'All Status' || r.status?.toLowerCase() === statusFilter.toLowerCase();
+    const matchesDept = departmentFilter === 'All Departments' || r.department?.toLowerCase() === departmentFilter.toLowerCase();
+    return matchesSearch && matchesStatus && matchesDept;
+  });
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -73,10 +68,19 @@ export default function ReimbursementsPage() {
           <h2 className="text-2xl font-bold text-slate-900">Reimbursements</h2>
           <p className="text-sm text-slate-500 mt-1">Kelola pengajuan penggantian biaya karyawan</p>
         </div>
-        <Link href="/reimbursements/new-reimbursement" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-          New Reimbursement
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+            Export
+          </button>
+          <Link href="/reimbursements/new-reimbursement" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+            New Reimbursement
+          </Link>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -124,7 +128,11 @@ export default function ReimbursementsPage() {
         </div>
         <div className="w-44">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+          >
             <option>All Status</option>
             <option>Pending</option>
             <option>Approved</option>
@@ -133,7 +141,11 @@ export default function ReimbursementsPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
-          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <select 
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+          >
             <option>All Departments</option>
             <option>Sales</option>
             <option>Marketing</option>
@@ -161,36 +173,50 @@ export default function ReimbursementsPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {REIMBURSEMENTS.map((item) => {
-                const status = STATUS_CONFIG[item.status];
+              {filteredRequests.map((item) => {
+                const status = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending;
+                const empName = item.employee || item.requester || 'User';
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors cursor-pointer group">
                     <td className="p-3 font-mono text-xs text-slate-500">{item.id}</td>
-                    <td className="p-3 text-slate-500">{item.date}</td>
+                    <td className="p-3 text-slate-500">{item.date || '-'}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
-                          {item.employee.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                          {empName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                         </div>
-                        <span className="font-medium text-slate-900">{item.employee}</span>
+                        <span className="font-medium text-slate-900">{empName}</span>
                       </div>
                     </td>
-                    <td className="p-3 text-slate-500">{item.department}</td>
-                    <td className="p-3 text-slate-700">{item.description}</td>
+                    <td className="p-3 text-slate-500">{item.department || '-'}</td>
+                    <td className="p-3 text-slate-700">{item.description || '-'}</td>
                     <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(item.amount)}</td>
                     <td className="p-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
                         {status.label}
                       </span>
                     </td>
-                    <td className="p-3 text-center">
-                      <button className="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">
+                    <td className="p-3 text-center flex justify-end gap-2">
+                      <button 
+                        onClick={(e) => handleDelete(e, item.id)}
+                        className="text-slate-400 hover:text-rose-500 transition-colors"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                      </button>
+                      <button className="text-slate-400 hover:text-primary transition-colors cursor-pointer">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
                       </button>
                     </td>
                   </tr>
                 );
               })}
+              {filteredRequests.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-slate-500">
+                    Tidak ada data reimbursement.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

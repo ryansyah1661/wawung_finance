@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface LineItem {
   id: number;
@@ -11,6 +12,8 @@ interface LineItem {
 }
 
 export default function CreateInvoicePage() {
+  const router = useRouter();
+  const [showSuccess, setShowSuccess] = useState(false);
   const [client, setClient] = useState('');
   const [issueDate, setIssueDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -32,6 +35,28 @@ export default function CreateInvoicePage() {
   };
 
   const total = items.reduce((sum, item) => sum + item.qty * item.price, 0);
+
+  const handleSave = () => {
+    const newInvoice = {
+      id: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      client,
+      issueDate,
+      dueDate,
+      amount: total,
+      status: 'draft',
+      notes,
+      items
+    };
+
+    const existingStr = localStorage.getItem('mock_invoices');
+    const existing = existingStr ? JSON.parse(existingStr) : [];
+    localStorage.setItem('mock_invoices', JSON.stringify([newInvoice, ...existing]));
+
+    setShowSuccess(true);
+    setTimeout(() => {
+      router.push('/invoices');
+    }, 2000);
+  };
 
   return (
     <div className="max-w-[900px] mx-auto space-y-6">
@@ -167,10 +192,22 @@ export default function CreateInvoicePage() {
         <button className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer">
           Simpan sebagai Draft
         </button>
-        <button className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
-          Terbitkan Invoice
+        <button onClick={handleSave} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
+          Simpan Invoice
         </button>
       </div>
+
+      {showSuccess && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Invoice Berhasil Disimpan</h3>
+            <p className="text-slate-500 text-sm">Data invoice telah disimpan. Mengalihkan ke halaman daftar invoice...</p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const INVOICES = [
@@ -58,7 +58,51 @@ function formatRupiah(amount: number) {
 }
 
 export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [dateFilter, setDateFilter] = useState('');
+
+  useEffect(() => {
+    const existingStr = localStorage.getItem('mock_invoices');
+    if (existingStr) {
+      setInvoices(JSON.parse(existingStr));
+    } else {
+      localStorage.setItem('mock_invoices', JSON.stringify(INVOICES));
+      setInvoices(INVOICES);
+    }
+  }, []);
+
+  const handleDelete = (id: string) => {
+    if (!confirm('Apakah anda yakin ingin menghapus invoice ini?')) return;
+    const updated = invoices.filter(i => i.id !== id);
+    setInvoices(updated);
+    localStorage.setItem('mock_invoices', JSON.stringify(updated));
+  };
+
+  const filteredInvoices = invoices.filter(inv => {
+    const matchSearch = inv.client.toLowerCase().includes(searchQuery.toLowerCase()) || inv.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const mappedStatus = STATUS_CONFIG[inv.status]?.label || 'Draft';
+    const matchStatus = statusFilter === 'All Status' || mappedStatus === statusFilter;
+    const matchDate = dateFilter === '' || inv.dueDate === dateFilter;
+    return matchSearch && matchStatus && matchDate;
+  });
+
+  const handleExport = () => {
+    import('xlsx').then(XLSX => {
+      const worksheet = XLSX.utils.json_to_sheet(filteredInvoices.map((e: any) => ({
+        'No. Invoice': e.id,
+        Client: e.client,
+        'Tanggal Terbit': e.issueDate,
+        'Jatuh Tempo': e.dueDate,
+        Jumlah: e.amount,
+        Status: STATUS_CONFIG[e.status]?.label || e.status
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
+      XLSX.writeFile(workbook, "invoices.xlsx");
+    });
+  };
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -69,12 +113,18 @@ export default function InvoicesPage() {
           <h2 className="text-2xl font-bold text-slate-900">Invoices</h2>
           <p className="text-sm text-slate-500 mt-1">Kelola tagihan dan pembayaran klien</p>
         </div>
-        <Link href="/invoices/new-invoice">
-          <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-            Create Invoice
+        <div className="flex gap-2">
+          <button onClick={handleExport} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+            Export
           </button>
-        </Link>
+          <Link href="/invoices/new-invoice">
+            <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              Create Invoice
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -131,7 +181,7 @@ export default function InvoicesPage() {
         </div>
         <div className="w-44">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>All Status</option>
             <option>Draft</option>
             <option>Due Soon</option>
@@ -143,6 +193,8 @@ export default function InvoicesPage() {
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Due Date Range</label>
           <input
             type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
           />
         </div>
@@ -164,8 +216,14 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {INVOICES.map((invoice) => {
-                const status = STATUS_CONFIG[invoice.status];
+              {filteredInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                    Tidak ada invoice ditemukan.
+                  </td>
+                </tr>
+              ) : filteredInvoices.map((invoice) => {
+                const status = STATUS_CONFIG[invoice.status] || STATUS_CONFIG['draft'];
                 return (
                   <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-3 font-mono text-xs font-medium text-slate-900">{invoice.id}</td>
@@ -186,6 +244,9 @@ export default function InvoicesPage() {
                         <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download">
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
                         </button>
+                        <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Hapus">
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -198,7 +259,7 @@ export default function InvoicesPage() {
         {/* Pagination Footer */}
         <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between">
           <span className="text-slate-500 text-sm">
-            Menampilkan 1-5 dari 5 invoice
+            Menampilkan {filteredInvoices.length} invoice
           </span>
           <div className="flex gap-1">
             <button className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer" disabled>

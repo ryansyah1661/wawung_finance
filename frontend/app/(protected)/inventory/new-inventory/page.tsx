@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function NewInventoryItemPage() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
@@ -14,8 +16,23 @@ export default function NewInventoryItemPage() {
   const [savedCode, setSavedCode] = useState<string | null>(null);
 
   const handleSave = () => {
-    // TODO: replace with real API call to Laravel backend, use the returned code
     const generatedCode = `INV-A-${Math.floor(100 + Math.random() * 900)}`;
+    const newItem = {
+      code: generatedCode,
+      name,
+      category,
+      location,
+      qty: Number(qty) || 0,
+      unit,
+      value: Number(value.replace(/\D/g, '')) || 0,
+      status: Number(qty) > 5 ? 'available' : (Number(qty) > 0 ? 'low-stock' : 'out-of-stock'),
+      notes
+    };
+
+    const existingStr = localStorage.getItem('mock_inventory');
+    const existing = existingStr ? JSON.parse(existingStr) : [];
+    localStorage.setItem('mock_inventory', JSON.stringify([newItem, ...existing]));
+
     setSavedCode(generatedCode);
   };
 
@@ -38,20 +55,28 @@ export default function NewInventoryItemPage() {
           <p className="text-xs text-slate-400 text-center max-w-xs">
             Cetak dan tempelkan QR ini di barang. Scan QR akan membuka halaman detail barang ini.
           </p>
-          <div className="flex gap-3 w-full">
-            <a
-              href={qrImageUrl}
-              download={`qr-${savedCode}.png`}
-              className="flex-1 text-center px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Download QR
-            </a>
+          <div className="flex flex-col gap-3 w-full">
+            <div className="flex gap-3 w-full">
+              <a
+                href={qrImageUrl}
+                download={`qr-${savedCode}.png`}
+                className="flex-1 text-center px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Download QR
+              </a>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[18px]">print</span>
+                Print
+              </button>
+            </div>
             <button
-              onClick={() => window.print()}
-              className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 transition-colors flex items-center justify-center gap-1.5"
+              onClick={() => router.push('/inventory')}
+              className="w-full px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">print</span>
-              Print
+              Kembali ke Daftar Inventaris
             </button>
           </div>
         </div>

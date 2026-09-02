@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const INVENTORY = [
@@ -23,11 +23,56 @@ function formatRupiah(amount: number) {
 }
 
 export default function InventoryPage() {
+  const [inventory, setInventory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('Semua Kategori');
+  const [statusFilter, setStatusFilter] = useState('Semua Status');
 
-  const totalValue = INVENTORY.reduce((sum, item) => sum + item.qty * item.value, 0);
-  const lowStockCount = INVENTORY.filter((i) => i.status === 'low-stock').length;
-  const outOfStockCount = INVENTORY.filter((i) => i.status === 'out-of-stock').length;
+  useEffect(() => {
+    const existingStr = localStorage.getItem('mock_inventory');
+    if (existingStr) {
+      setInventory(JSON.parse(existingStr));
+    } else {
+      localStorage.setItem('mock_inventory', JSON.stringify(INVENTORY));
+      setInventory(INVENTORY);
+    }
+  }, []);
+
+  const handleDelete = (code: string) => {
+    if (!confirm('Apakah anda yakin ingin menghapus barang ini?')) return;
+    const updated = inventory.filter(i => i.code !== code);
+    setInventory(updated);
+    localStorage.setItem('mock_inventory', JSON.stringify(updated));
+  };
+
+  const filteredInventory = inventory.filter(item => {
+    const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.code.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchCategory = categoryFilter === 'Semua Kategori' || item.category === categoryFilter;
+    const mappedStatus = STATUS_CONFIG[item.status]?.label || item.status;
+    const matchStatus = statusFilter === 'Semua Status' || mappedStatus === statusFilter;
+    return matchSearch && matchCategory && matchStatus;
+  });
+
+  const handleExport = () => {
+    import('xlsx').then(XLSX => {
+      const worksheet = XLSX.utils.json_to_sheet(filteredInventory.map((e: any) => ({
+        Kode: e.code,
+        'Nama Barang': e.name,
+        Kategori: e.category,
+        Lokasi: e.location,
+        Stok: `${e.qty} ${e.unit}`,
+        'Nilai/Unit': e.value,
+        Status: STATUS_CONFIG[e.status]?.label || e.status
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+      XLSX.writeFile(workbook, "inventory.xlsx");
+    });
+  };
+
+  const totalValue = filteredInventory.reduce((sum, item) => sum + item.qty * item.value, 0);
+  const lowStockCount = filteredInventory.filter((i) => i.status === 'low-stock').length;
+  const outOfStockCount = filteredInventory.filter((i) => i.status === 'out-of-stock').length;
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -38,10 +83,16 @@ export default function InventoryPage() {
           <h2 className="text-2xl font-bold text-slate-900">Inventaris</h2>
           <p className="text-sm text-slate-500 mt-1">Kelola aset dan stok barang perusahaan</p>
         </div>
-        <Link href="/inventory/new-inventory" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-          Tambah Barang
-        </Link>
+        <div className="flex gap-2">
+          <button onClick={handleExport} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+            Export
+          </button>
+          <Link href="/inventory/new-inventory" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+            Tambah Barang
+          </Link>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -49,7 +100,7 @@ export default function InventoryPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Item</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">{INVENTORY.length}</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{filteredInventory.length}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <span className="material-symbols-outlined text-[20px]">inventory_2</span>
@@ -98,7 +149,7 @@ export default function InventoryPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kategori</label>
-          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>Semua Kategori</option>
             <option>Elektronik</option>
             <option>Furniture</option>
@@ -107,7 +158,7 @@ export default function InventoryPage() {
         </div>
         <div className="w-44">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>Semua Status</option>
             <option>Tersedia</option>
             <option>Stok Menipis</option>
@@ -133,8 +184,14 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {INVENTORY.map((item) => {
-                const status = STATUS_CONFIG[item.status];
+              {filteredInventory.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    Tidak ada barang ditemukan.
+                  </td>
+                </tr>
+              ) : filteredInventory.map((item) => {
+                const status = STATUS_CONFIG[item.status] || STATUS_CONFIG['available'];
                 return (
                   <tr key={item.code} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-3 font-mono text-xs text-slate-500">{item.code}</td>
@@ -159,6 +216,9 @@ export default function InventoryPage() {
                         </Link>
                         <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+                        </button>
+                        <button onClick={() => handleDelete(item.code)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Hapus">
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                         </button>
                       </div>
                     </td>

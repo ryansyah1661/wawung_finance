@@ -42,7 +42,25 @@ const DATA: Record<TabKey, { name: string; detail: string; status: 'active' | 'i
 
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('accounts');
-  const items = DATA[activeTab];
+  const [masterData, setMasterData] = useState<typeof DATA>(DATA);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('mock_master_data');
+    if (stored) {
+      setMasterData(JSON.parse(stored));
+    } else {
+      localStorage.setItem('mock_master_data', JSON.stringify(DATA));
+    }
+  }, []);
+
+  const handleDelete = (nameToDelete: string) => {
+    const updatedData = { ...masterData };
+    updatedData[activeTab] = updatedData[activeTab].filter(item => item.name !== nameToDelete);
+    setMasterData(updatedData);
+    localStorage.setItem('mock_master_data', JSON.stringify(updatedData));
+  };
+
+  const items = masterData[activeTab] || [];
 
   return (
     <div className="max-w-300 mx-auto space-y-6">
@@ -110,7 +128,7 @@ export default function MasterDataPage() {
                       <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
+                      <button onClick={() => handleDelete(item.name)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                       </button>
                     </div>

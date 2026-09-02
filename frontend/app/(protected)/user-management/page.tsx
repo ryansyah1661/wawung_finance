@@ -18,6 +18,42 @@ const ROLE_CONFIG: Record<string, { bg: string; text: string }> = {
 
 export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<typeof USERS>(USERS);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('mock_users');
+    if (stored) {
+      setUsers(JSON.parse(stored));
+    } else {
+      localStorage.setItem('mock_users', JSON.stringify(USERS));
+    }
+  }, []);
+
+  const handleDelete = (emailToDelete: string) => {
+    const updatedUsers = users.filter(user => user.email !== emailToDelete);
+    setUsers(updatedUsers);
+    localStorage.setItem('mock_users', JSON.stringify(updatedUsers));
+  };
+
+  const handleExportCSV = () => {
+    import('xlsx').then(XLSX => {
+      const worksheet = XLSX.utils.json_to_sheet(users.map(u => ({
+        Nama: u.name,
+        Email: u.email,
+        Role: u.role,
+        Departemen: u.department,
+        Status: u.status
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+      XLSX.writeFile(workbook, "users_export.xlsx");
+    });
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="max-w-350 mx-auto space-y-6">
@@ -28,10 +64,16 @@ export default function UserManagementPage() {
           <h2 className="text-2xl font-bold text-slate-900">User Management</h2>
           <p className="text-sm text-slate-500 mt-1">Kelola akses pengguna dan hak akses role</p>
         </div>
-        <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
-          Undang User
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExportCSV} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+            Export
+          </button>
+          <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
+            Undang User
+          </button>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -39,7 +81,7 @@ export default function UserManagementPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total User</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">5</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{users.length}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <span className="material-symbols-outlined text-[20px]">group</span>
@@ -48,7 +90,7 @@ export default function UserManagementPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Aktif</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">4</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{users.filter(u => u.status === 'active').length}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
             <span className="material-symbols-outlined text-[20px]">check_circle</span>
@@ -91,7 +133,7 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {USERS.map((user) => {
+              {filteredUsers.map((user) => {
                 const roleStyle = ROLE_CONFIG[user.role];
                 return (
                   <tr key={user.email} className="hover:bg-slate-50 transition-colors group">
@@ -124,8 +166,8 @@ export default function UserManagementPage() {
                         <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                         </button>
-                        <button className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Nonaktifkan">
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>block</span>
+                        <button onClick={() => handleDelete(user.email)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                         </button>
                       </div>
                     </td>

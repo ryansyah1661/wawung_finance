@@ -21,7 +21,7 @@ const LOGS = [
   { user: 'Rina Wijaya', action: 'create', description: 'Mengajukan Reimbursement #RB-2023-041', timestamp: '2023-10-24 11:30:00' },
 ];
 
-export default function AuditLogPage() {
+export default function ActivityLogPage() {
   const [filterAction, setFilterAction] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -32,7 +32,7 @@ export default function AuditLogPage() {
 
       {/* Page Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Audit Log</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Activity Log</h2>
         <p className="text-sm text-slate-500 mt-1">Riwayat aktivitas pengguna dalam sistem</p>
       </div>
 

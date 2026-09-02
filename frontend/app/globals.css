@@ -147,3 +147,71 @@
   max-width: 1em;
   white-space: nowrap;
 }
+
+/* ===== Print Styles ===== */
+@media print {
+  /* Hide sidebar & topnav */
+  [data-layout="sidebar"],
+  [data-layout="topnav"] {
+    display: none !important;
+  }
+
+  /* Remove margin/padding from layout wrapper */
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Reset layout root */
+  [data-layout="root"] {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Reset content wrapper */
+  [data-layout="content"] {
+    margin-left: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    display: block !important;
+  }
+
+  /* Reset main content area */
+  [data-layout="main"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 20px !important;
+  }
+
+  /* Hide interactive buttons */
+  button {
+    display: none !important;
+  }
+
+  /* Hide approval action card for cleaner print */
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Ensure no page break inside cards */
+  [data-layout="main"] > div > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Clean up shadows for print */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* Preserve colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

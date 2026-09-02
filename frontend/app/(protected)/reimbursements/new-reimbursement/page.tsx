@@ -2,8 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function NewReimbursementPage() {
+  const router = useRouter();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -119,10 +122,49 @@ export default function NewReimbursementPage() {
         >
           Batal
         </Link>
-        <button className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
+        <button
+          onClick={() => {
+            const newReimbursement = {
+              id: 'RM-' + Math.floor(Math.random() * 10000),
+              date: expenseDate || new Date().toISOString().split('T')[0],
+              requester: 'Current User', // Mock
+              department: 'General', // Mock
+              description: description || 'Reimbursement Baru',
+              category: category || 'Lainnya',
+              amount: amount || '0',
+              status: 'pending'
+            };
+            const existing = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
+            localStorage.setItem('mock_reimbursements', JSON.stringify([newReimbursement, ...existing]));
+            
+            setShowSuccessModal(true);
+            setTimeout(() => {
+              router.push('/reimbursements');
+            }, 2000);
+          }}
+          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm"
+        >
           Ajukan Reimbursement
         </button>
       </div>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">check_circle</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
+            <p className="text-slate-500 mb-6">Pengajuan reimbursement telah berhasil disimpan.</p>
+            <button 
+              onClick={() => router.push('/reimbursements')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Ke Daftar Reimbursement
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

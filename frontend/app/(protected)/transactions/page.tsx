@@ -43,17 +43,20 @@ export default function TransactionsPage() {
                 alert('Tidak ada data untuk di-export!');
                 return;
               }
-              const headers = ['ID', 'Tanggal', 'Keterangan', 'Kategori', 'Akun', 'Type', 'Jumlah'];
-              const rows = transactions.map((t: any) => [t.id, t.date, `"${t.description}"`, t.category, t.account, t.type, t.amount]);
-              const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-              const link = document.createElement("a");
-              const url = URL.createObjectURL(blob);
-              link.setAttribute("href", url);
-              link.setAttribute("download", "laporan_transaksi.csv");
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+              import('xlsx').then(XLSX => {
+                const worksheet = XLSX.utils.json_to_sheet(transactions.map((t: any) => ({
+                  ID: t.id,
+                  Tanggal: t.date,
+                  Keterangan: t.description,
+                  Kategori: t.category,
+                  Akun: t.account,
+                  Tipe: t.type,
+                  Jumlah: t.amount
+                })));
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+                XLSX.writeFile(workbook, "laporan_transaksi.xlsx");
+              });
             }}
             className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer"
           >

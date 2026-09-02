@@ -1,10 +1,146 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const AreaChart = dynamic(() => import('recharts').then(m => m.AreaChart), { ssr: false });
+const Area = dynamic(() => import('recharts').then(m => m.Area), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(m => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false });
+const PieChart = dynamic(() => import('recharts').then(m => m.PieChart), { ssr: false });
+const Pie = dynamic(() => import('recharts').then(m => m.Pie), { ssr: false });
+const Cell = dynamic(() => import('recharts').then(m => m.Cell), { ssr: false });
 
 export default function SuperadminDashboard() {
   const router = useRouter();
+
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
+  const [dueInvoices, setDueInvoices] = useState<any[]>([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{name: string, amount: number, color: string}[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load transactions
+    const transactions = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
+    
+    let incomeTotal = 0;
+    let expenseTotal = 0;
+    const catMap: Record<string, number> = {};
+
+    transactions.forEach((t: any) => {
+      const amt = Number(t.amount) || 0;
+      if (t.type === 'Income') {
+        incomeTotal += amt;
+      } else {
+        expenseTotal += amt;
+        const cat = t.category || 'Lainnya';
+        catMap[cat] = (catMap[cat] || 0) + amt;
+      }
+    });
+
+    setTotalIncome(incomeTotal);
+    setTotalExpense(expenseTotal);
+    setRecentTransactions(transactions.slice(0, 5));
+
+    // Category breakdown for donut chart
+    const catColors: Record<string, string> = {
+      'Operations': '#3b82f6',
+      'Marketing': '#f59e0b',
+      'Payroll': '#8b5cf6',
+      'IT & Tech': '#06b6d4',
+      'Income': '#10b981',
+      'Lainnya': '#64748b',
+    };
+    const breakdown = Object.entries(catMap).map(([name, amount]) => ({
+      name,
+      amount,
+      color: catColors[name] || '#64748b',
+    }));
+    setCategoryBreakdown(breakdown);
+
+    // Build monthly chart data from transactions
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    const monthlyIncome: Record<string, number> = {};
+    const monthlyExpense: Record<string, number> = {};
+    
+    transactions.forEach((t: any) => {
+      if (t.date) {
+        const d = new Date(t.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+        const monthLabel = monthNames[d.getMonth()];
+        if (t.type === 'Income') {
+          monthlyIncome[monthLabel] = (monthlyIncome[monthLabel] || 0) + (Number(t.amount) || 0);
+        } else {
+          monthlyExpense[monthLabel] = (monthlyExpense[monthLabel] || 0) + (Number(t.amount) || 0);
+        }
+      }
+    });
+
+    // Get current month and 5 months before
+    const now = new Date();
+    const monthData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = monthNames[d.getMonth()];
+      monthData.push({
+        name: label,
+        pemasukan: monthlyIncome[label] || 0,
+        pengeluaran: monthlyExpense[label] || 0,
+      });
+    }
+    setChartData(monthData);
+
+    // Load pending fund requests & reimbursements
+    const fundRequests = JSON.parse(localStorage.getItem('mock_fund_requests') || '[]');
+    const reimbursements = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
+    
+    const pendingFR = fundRequests.filter((f: any) => (f.status || 'Pending') === 'Pending');
+    const pendingRB = reimbursements.filter((r: any) => (r.status || 'Pending') === 'Pending');
+    
+    const allPending = [
+      ...pendingFR.map((f: any) => ({ ...f, source: 'Fund Request' })),
+      ...pendingRB.map((r: any) => ({ ...r, source: 'Reimbursement' })),
+    ];
+    setPendingCount(allPending.length);
+    setPendingItems(allPending.slice(0, 4));
+
+    // Load invoices for due dates
+    const invoices = JSON.parse(localStorage.getItem('mock_invoices') || '[]');
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = invoices
+      .filter((inv: any) => inv.status !== 'Paid' && inv.status !== 'Lunas')
+      .slice(0, 3);
+    setDueInvoices(upcoming);
+  }, []);
+
+  const formatRp = (n: number) => {
+    if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)}B`;
+    if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1)}M`;
+    return `Rp ${n.toLocaleString('id-ID')}`;
+  };
+
+  const saldo = totalIncome - totalExpense;
+
+  // Build donut chart gradient
+  const totalCatAmount = categoryBreakdown.reduce((s, c) => s + c.amount, 0);
+  let gradientParts: string[] = [];
+  let cumPercent = 0;
+  categoryBreakdown.forEach((cat) => {
+    const pct = totalCatAmount > 0 ? (cat.amount / totalCatAmount) * 100 : 0;
+    gradientParts.push(`${cat.color} ${cumPercent}% ${cumPercent + pct}%`);
+    cumPercent += pct;
+  });
+  const donutGradient = gradientParts.length > 0 
+    ? `conic-gradient(${gradientParts.join(', ')})` 
+    : 'conic-gradient(#e2e8f0 0% 100%)';
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -19,71 +155,86 @@ export default function SuperadminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Pemasukan */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow group">
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-slate-500 font-bold text-[11px] tracking-wider uppercase">Pemasukan</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <span className="material-symbols-outlined text-[18px]">trending_up</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-xl"></div>
+          <div className="flex justify-between items-start mb-3 pl-2">
+            <span className="text-emerald-600 font-bold text-[11px] tracking-wider uppercase">Pemasukan</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+              <span className="material-symbols-outlined text-[22px]">trending_up</span>
             </div>
           </div>
-          <div>
-            <div className="font-semibold text-lg text-slate-900 mb-1 font-mono">Rp 45.200.000</div>
-            <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-              <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-              12.5% vs bulan lalu
+          <div className="pl-2">
+            <div className="text-2xl font-bold text-slate-900 mb-1.5 font-mono tracking-tight">
+              <span className="text-sm font-semibold text-slate-500 mr-1">Rp</span>{totalIncome.toLocaleString('id-ID')}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-md w-fit">
+              <span className="material-symbols-outlined text-[13px]">arrow_upward</span>
+              {recentTransactions.filter((t: any) => t.type === 'Income').length} transaksi masuk
             </div>
           </div>
         </div>
 
         {/* Pengeluaran */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow group">
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-slate-500 font-bold text-[11px] tracking-wider uppercase">Pengeluaran</span>
-            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
-              <span className="material-symbols-outlined text-[18px]">trending_down</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-xl"></div>
+          <div className="flex justify-between items-start mb-3 pl-2">
+            <span className="text-rose-600 font-bold text-[11px] tracking-wider uppercase">Pengeluaran</span>
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+              <span className="material-symbols-outlined text-[22px]">trending_down</span>
             </div>
           </div>
-          <div>
-            <div className="font-semibold text-lg text-slate-900 mb-1 font-mono">Rp 12.800.000</div>
-            <div className="flex items-center gap-1 text-xs text-rose-600 font-medium">
-              <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
-              3.2% vs bulan lalu
+          <div className="pl-2">
+            <div className="text-2xl font-bold text-slate-900 mb-1.5 font-mono tracking-tight">
+              <span className="text-sm font-semibold text-slate-500 mr-1">Rp</span>{totalExpense.toLocaleString('id-ID')}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-rose-600 font-medium bg-rose-50 px-2 py-1 rounded-md w-fit">
+              <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
+              {recentTransactions.filter((t: any) => t.type === 'Expense').length} transaksi keluar
             </div>
           </div>
         </div>
 
         {/* Saldo Bersih */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <span className="text-slate-500 font-bold text-[11px] tracking-wider uppercase">Saldo Bersih</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-              <span className="material-symbols-outlined text-[18px]">account_balance</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500 rounded-l-xl"></div>
+          <div className="flex justify-between items-start mb-3 pl-2">
+            <span className="text-blue-600 font-bold text-[11px] tracking-wider uppercase">Saldo Bersih</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+              <span className="material-symbols-outlined text-[22px]">account_balance</span>
             </div>
           </div>
-          <div className="relative z-10">
-            <div className="text-blue-600 mb-1 text-lg font-bold font-mono">Rp 32.400.000</div>
-            <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-              <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-              8.1% vs bulan lalu
+          <div className="pl-2">
+            <div className={`text-2xl font-bold mb-1.5 font-mono tracking-tight ${saldo >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+              <span className="text-sm font-semibold text-slate-500 mr-1">Rp</span>{Math.abs(saldo).toLocaleString('id-ID')}
+            </div>
+            <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md w-fit ${saldo >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+              <span className="material-symbols-outlined text-[13px]">{saldo >= 0 ? 'arrow_upward' : 'arrow_downward'}</span>
+              {saldo >= 0 ? 'Surplus — sehat' : 'Defisit — perlu perhatian'}
             </div>
           </div>
         </div>
 
         {/* Menunggu Approval */}
-        <div className="bg-white border border-amber-200 shadow-sm rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow group cursor-pointer">
-          <div className="flex justify-between items-start mb-4">
+        <div 
+          onClick={() => router.push('/fund-requests')}
+          className="bg-white border border-amber-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group cursor-pointer relative overflow-hidden"
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-400 rounded-l-xl"></div>
+          <div className="flex justify-between items-start mb-3 pl-2">
             <span className="text-amber-600 font-bold text-[11px] tracking-wider uppercase">Menunggu Approval</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-              <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+              <span className="material-symbols-outlined text-[22px]">pending_actions</span>
             </div>
           </div>
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between pl-2">
             <div>
-              <div className="text-slate-900 mb-1 text-xl font-mono font-bold">5 <span className="text-xs text-slate-500 font-normal">items</span></div>
-              <div className="text-xs text-slate-500">Perlu tindakan</div>
+              <div className="text-2xl text-slate-900 mb-1.5 font-mono font-bold tracking-tight">{pendingCount} <span className="text-sm text-slate-400 font-normal">items</span></div>
+              <div className="flex items-center gap-1 text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-md w-fit">
+                <span className="material-symbols-outlined text-[13px]">schedule</span>
+                Perlu tindakan
+              </div>
             </div>
-            <span className="material-symbols-outlined text-amber-600 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+            <span className="material-symbols-outlined text-amber-500 group-hover:translate-x-1 transition-transform text-[20px]">arrow_forward</span>
           </div>
         </div>
 
@@ -92,84 +243,99 @@ export default function SuperadminDashboard() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Line Chart Area */}
+        {/* Area Chart */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold text-slate-900">Tren Arus Kas (Cash Flow)</h3>
-            <select className="bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 py-1.5 pl-3 pr-8 focus:ring-1 focus:ring-primary outline-none cursor-pointer">
-              <option>6 Bulan Terakhir</option>
-              <option>Tahun Ini</option>
-            </select>
+            <div className="flex gap-4 text-xs font-medium text-slate-600">
+              <div className="flex items-center gap-2"><span className="w-3 h-1.5 rounded-full bg-emerald-500"></span> Pemasukan</div>
+              <div className="flex items-center gap-2"><span className="w-3 h-1.5 rounded-full bg-rose-400"></span> Pengeluaran</div>
+            </div>
           </div>
           
-          <div className="flex-1 relative min-h-[250px] bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] bg-[size:20px_20px] rounded-lg p-4 flex items-end">
-            <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-slate-400 text-[11px] font-mono py-4 px-2">
-              <span>60M</span>
-              <span>40M</span>
-              <span>20M</span>
-              <span>0</span>
-            </div>
-            
-            <svg className="absolute inset-0 w-full h-full p-4 pl-12" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <path className="opacity-80" d="M 0 80 Q 20 70, 40 50 T 60 40 T 80 20 T 100 30" fill="none" stroke="#10b981" strokeWidth="2.5"></path>
-              <circle cx="100" cy="30" fill="#10b981" r="3"></circle>
-              <path className="opacity-80" d="M 0 90 Q 20 85, 40 80 T 60 70 T 80 75 T 100 65" fill="none" stroke="#ef4444" strokeWidth="2.5"></path>
-              <circle cx="100" cy="65" fill="#ef4444" r="3"></circle>
-            </svg>
-
-            <div className="absolute bottom-0 left-12 right-4 flex justify-between text-slate-500 text-xs translate-y-6 font-medium">
-              <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>Mei</span><span>Jun</span>
-            </div>
-
-            <div className="absolute top-4 right-4 flex gap-4 bg-white/90 px-3 py-1.5 rounded-md backdrop-blur-sm border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                <span className="w-3 h-1 bg-emerald-500 rounded-full"></span> Pemasukan
-              </div>
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                <span className="w-3 h-1 bg-rose-500 rounded-full"></span> Pengeluaran
-              </div>
-            </div>
+          <div className="flex-1 min-h-[280px]">
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={8} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v: number) => v >= 1000000 ? `${(v/1000000).toFixed(0)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : `${v}`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                  labelStyle={{ color: '#64748b', fontSize: '11px', marginBottom: '6px', fontWeight: 600 }}
+                  itemStyle={{ color: '#0f172a', fontSize: '12px', padding: '2px 0', fontWeight: 500 }}
+                  formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
+                  cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                />
+                <Area type="monotone" dataKey="pemasukan" name="Pemasukan" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorIncome)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
+                <Area type="monotone" dataKey="pengeluaran" name="Pengeluaran" stroke="#f43f5e" strokeWidth={2.5} fillOpacity={1} fill="url(#colorExpense)" dot={{ r: 4, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+          {chartData.every(d => d.pemasukan === 0 && d.pengeluaran === 0) && (
+            <div className="text-center text-slate-400 text-xs py-2 -mt-4">
+              Grafik akan terisi otomatis setelah Anda menambahkan transaksi
+            </div>
+          )}
         </div>
 
         {/* Donut Chart Area */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Komposisi Pengeluaran</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Komposisi Pengeluaran</h3>
           <div className="flex-1 flex flex-col items-center justify-center relative">
-            <div 
-              className="w-44 h-44 rounded-full flex items-center justify-center shadow-inner" 
-              style={{
-                background: 'conic-gradient(#3b82f6 0% 45%, #8b5cf6 45% 70%, #f59e0b 70% 88%, #64748b 88% 100%)'
-              }}
-            >
-              <div className="w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-sm">
-                <span className="text-slate-400 text-xs">Total Keluar</span>
-                <span className="text-sm font-semibold text-slate-900 mt-0.5 font-mono">Rp 12.8M</span>
+            <div className="w-full" style={{ height: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#e2e8f0'}]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={85}
+                    paddingAngle={categoryBreakdown.length > 1 ? 4 : 0}
+                    dataKey="amount"
+                    stroke="none"
+                  >
+                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#e2e8f0'}]).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                    itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
+                    formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Center label */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ top: 0, height: 200 }}>
+                <span className="text-slate-400 text-[10px]">Total Keluar</span>
+                <span className="text-sm font-bold text-slate-900 font-mono">{formatRp(totalExpense)}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              <span className="text-xs text-slate-700 font-medium">Gaji</span>
-              <span className="text-xs text-slate-500 ml-auto font-mono">45%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-              <span className="text-xs text-slate-700 font-medium">Ops</span>
-              <span className="text-xs text-slate-500 ml-auto font-mono">25%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span className="text-xs text-slate-700 font-medium">Marketing</span>
-              <span className="text-xs text-slate-500 ml-auto font-mono">18%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
-              <span className="text-xs text-slate-700 font-medium">Lainnya</span>
-              <span className="text-xs text-slate-500 ml-auto font-mono">12%</span>
-            </div>
+          <div className="mt-2 grid grid-cols-2 gap-y-2.5 gap-x-3">
+            {categoryBreakdown.length > 0 ? categoryBreakdown.map((cat) => (
+              <div key={cat.name} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></span>
+                <span className="text-xs text-slate-700 font-medium truncate">{cat.name}</span>
+                <span className="text-xs text-slate-500 ml-auto font-mono">
+                  {totalCatAmount > 0 ? Math.round((cat.amount / totalCatAmount) * 100) : 0}%
+                </span>
+              </div>
+            )) : (
+              <div className="col-span-2 text-xs text-slate-400 text-center py-2">Belum ada data pengeluaran</div>
+            )}
           </div>
         </div>
 
@@ -182,7 +348,10 @@ export default function SuperadminDashboard() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl flex flex-col lg:col-span-2 overflow-hidden">
           <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="text-lg font-semibold text-slate-900">Transaksi Terbaru</h3>
-            <button className="text-primary hover:underline text-xs transition-colors flex items-center gap-1 font-semibold cursor-pointer">
+            <button 
+              onClick={() => router.push('/transactions')}
+              className="text-primary hover:underline text-xs transition-colors flex items-center gap-1 font-semibold cursor-pointer"
+            >
               Lihat Semua <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
           </div>
@@ -194,46 +363,38 @@ export default function SuperadminDashboard() {
                   <th className="py-3 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Deskripsi</th>
                   <th className="py-3 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kategori</th>
                   <th className="py-3 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Jumlah</th>
-                  <th className="py-3 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Status</th>
+                  <th className="py-3 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Tipe</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3.5 px-6 text-slate-500">24 Okt 2023</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-medium">Pembayaran Vendor IT</td>
-                  <td className="py-3.5 px-6 text-slate-500">Operations</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-mono text-right">-Rp 4.500.000</td>
-                  <td className="py-3.5 px-6 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Verified</span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3.5 px-6 text-slate-500">23 Okt 2023</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-medium">Invoice Client A</td>
-                  <td className="py-3.5 px-6 text-slate-500">Income</td>
-                  <td className="py-3.5 px-6 text-emerald-600 font-mono text-right font-medium">+Rp 12.000.000</td>
-                  <td className="py-3.5 px-6 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Verified</span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3.5 px-6 text-slate-500">23 Okt 2023</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-medium">Reimbursement Budi</td>
-                  <td className="py-3.5 px-6 text-slate-500">HR/Staff</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-mono text-right">-Rp 850.000</td>
-                  <td className="py-3.5 px-6 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">Pending</span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3.5 px-6 text-slate-500">22 Okt 2023</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-medium">Langganan Software</td>
-                  <td className="py-3.5 px-6 text-slate-500">Operations</td>
-                  <td className="py-3.5 px-6 text-slate-900 font-mono text-right">-Rp 2.100.000</td>
-                  <td className="py-3.5 px-6 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Verified</span>
-                  </td>
-                </tr>
+                {recentTransactions.length > 0 ? recentTransactions.map((trx: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3.5 px-6 text-slate-500">{trx.date}</td>
+                    <td className="py-3.5 px-6 text-slate-900 font-medium">{trx.description}</td>
+                    <td className="py-3.5 px-6 text-slate-500">{trx.category}</td>
+                    <td className={`py-3.5 px-6 font-mono text-right font-medium ${trx.type === 'Income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {trx.type === 'Income' ? '+' : '-'}Rp {Number(trx.amount).toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-3.5 px-6 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] ${
+                        trx.type === 'Income' 
+                          ? 'bg-emerald-50 text-emerald-700' 
+                          : 'bg-rose-50 text-rose-700'
+                      }`}>
+                        {trx.type}
+                      </span>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="py-8 px-6 text-center text-slate-400 text-sm">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="material-symbols-outlined text-[32px] text-slate-300">inbox</span>
+                        Belum ada transaksi. <button onClick={() => router.push('/transactions/income-expense?type=income')} className="text-primary hover:underline cursor-pointer">Buat transaksi pertama!</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -248,57 +409,68 @@ export default function SuperadminDashboard() {
               <span className="material-symbols-outlined text-amber-600">pending_actions</span>
               Menunggu Approval
             </h3>
-            <ul className="space-y-3">
-              <li className="flex items-start justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors">
-                <div>
-                  <div className="text-xs font-medium text-slate-900 mb-1">Pengajuan Dana Dept Marketing</div>
-                  <div className="text-xs text-amber-600 font-mono font-semibold">Rp 15.000.000</div>
-                </div>
-                <button className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0 shadow-sm cursor-pointer">
-                  <span className="material-symbols-outlined text-[18px]">check</span>
-                </button>
-              </li>
-              <li className="flex items-start justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors">
-                <div>
-                  <div className="text-xs font-medium text-slate-900 mb-1">Reimbursement Travel - Siti</div>
-                  <div className="text-xs text-amber-600 font-mono font-semibold">Rp 3.200.000</div>
-                </div>
-                <button className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0 shadow-sm cursor-pointer">
-                  <span className="material-symbols-outlined text-[18px]">check</span>
-                </button>
-              </li>
-            </ul>
-            <button className="w-full mt-4 text-center text-xs text-primary hover:underline font-semibold cursor-pointer">Lihat 3 lainnya</button>
+            {pendingItems.length > 0 ? (
+              <ul className="space-y-3">
+                {pendingItems.map((item: any, idx: number) => (
+                  <li key={idx} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors">
+                    <div>
+                      <div className="text-xs font-medium text-slate-900 mb-1">{item.description || item.title || 'Pengajuan Baru'}</div>
+                      <div className="text-[11px] text-slate-500">{item.source}</div>
+                      <div className="text-xs text-amber-600 font-mono font-semibold mt-1">
+                        Rp {Number(item.amount || 0).toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                    <button className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0 shadow-sm cursor-pointer">
+                      <span className="material-symbols-outlined text-[18px]">check</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center text-slate-400 text-xs py-4">
+                <span className="material-symbols-outlined text-[28px] text-slate-300 block mb-1">task_alt</span>
+                Tidak ada pengajuan yang menunggu approval
+              </div>
+            )}
+            {pendingCount > 4 && (
+              <button 
+                onClick={() => router.push('/fund-requests')}
+                className="w-full mt-4 text-center text-xs text-primary hover:underline font-semibold cursor-pointer"
+              >
+                Lihat {pendingCount - 4} lainnya
+              </button>
+            )}
           </div>
 
           {/* Invoice Jatuh Tempo List */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-rose-600">event_busy</span>
-              Invoice Jatuh Tempo
+              Invoice Terbaru
             </h3>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border-l-4 border-l-rose-500 border border-slate-200">
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-slate-900">INV-2023-104 (PT Alpha)</div>
-                  <div className="text-[11px] text-rose-600 font-medium mt-1">Jatuh Tempo: Hari Ini</div>
-                </div>
-                <div className="text-xs text-slate-900 font-mono font-semibold">Rp 8.5M</div>
-              </li>
-              <li className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border-l-4 border-l-amber-500 border border-slate-200">
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-slate-900">INV-2023-105 (CV Beta)</div>
-                  <div className="text-[11px] text-amber-600 font-medium mt-1">Jatuh Tempo: Besok</div>
-                </div>
-                <div className="text-xs text-slate-900 font-mono font-semibold">Rp 12.1M</div>
-              </li>
-            </ul>
+            {dueInvoices.length > 0 ? (
+              <ul className="space-y-3">
+                {dueInvoices.map((inv: any, idx: number) => (
+                  <li key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border-l-4 border-l-rose-500 border border-slate-200">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-slate-900">{inv.id || `INV-${idx + 1}`} — {inv.clientName || 'Client'}</div>
+                      <div className="text-[11px] text-rose-600 font-medium mt-1">Status: {inv.status || 'Unpaid'}</div>
+                    </div>
+                    <div className="text-xs text-slate-900 font-mono font-semibold">
+                      {formatRp(Number(inv.totalAmount || inv.amount || 0))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center text-slate-400 text-xs py-4">
+                <span className="material-symbols-outlined text-[28px] text-slate-300 block mb-1">receipt_long</span>
+                Belum ada invoice
+              </div>
+            )}
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }
