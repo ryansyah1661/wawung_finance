@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 export default function NewInventoryItemPage() {
   const router = useRouter();
@@ -14,30 +15,66 @@ export default function NewInventoryItemPage() {
   const [value, setValue] = useState('');
   const [notes, setNotes] = useState('');
   const [savedCode, setSavedCode] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<{name: string, dataUrl: string} | null>(null);
+  const [photo, setPhoto] = useState<{name: string, dataUrl: string, file?: File} | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+  const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '', type: 'success' as 'success' | 'warning' | 'info' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleSave = () => {
-    const generatedCode = `INV-A-${Math.floor(100 + Math.random() * 900)}`;
-    const newItem = {
-      code: generatedCode,
-      name,
-      category,
-      location,
-      qty: Number(qty) || 0,
-      unit,
-      value: Number(value.replace(/\D/g, '')) || 0,
-      status: Number(qty) > 5 ? 'available' : (Number(qty) > 0 ? 'low-stock' : 'out-of-stock'),
-      notes,
-      photo: photo?.dataUrl || null
-    };
+  const [addedDate, setAddedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-    const existingStr = localStorage.getItem('mock_inventory');
-    const existing = existingStr ? JSON.parse(existingStr) : [];
-    localStorage.setItem('mock_inventory', JSON.stringify([newItem, ...existing]));
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name || !location || !qty || !value) {
+      setInfoModal({ show: true, title: 'Validasi Gagal', message: 'Harap lengkapi semua field yang wajib diisi (*).', type: 'warning' });
+      return;
+    }
 
-    setSavedCode(generatedCode);
+    let newStatus = 'available';
+    if (parseInt(qty) === 0) newStatus = 'out-of-stock';
+    else if (parseInt(qty) <= 5) newStatus = 'low-stock';
+
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('category', category);
+      formData.append('location', location);
+      formData.append('qty', qty.toString());
+      formData.append('unit', unit || '-');
+      formData.append('status', newStatus);
+      formData.append('value', value.replace(/\D/g, '') || '0');
+      formData.append('notes', notes);
+      formData.append('addedDate', addedDate);
+      
+      if (photo?.file) {
+        formData.append('photo', photo.file);
+      }
+
+      const res = await api.post('/inventory', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      setSavedCode(res.data.code);
+    } catch (e: any) {
+      setInfoModal({ show: true, title: 'Error', message: 'Terjadi kesalahan saat menyimpan data ke server.', type: 'warning' });
+    }
   };
+
+  useEffect(() => {
+    // Fetch categories from API
+    api.get('/categories')
+      .then(res => {
+        const cats = res.data.filter((c: any) => c.status === 'active' && c.type === 'categories');
+        if (cats.length > 0) setAvailableCategories(cats);
+        else setAvailableCategories([{name: 'Elektronik'}, {name: 'Furniture'}, {name: 'ATK'}]);
+      })
+      .catch(err => {
+        console.error(err);
+        setAvailableCategories([{name: 'Elektronik'}, {name: 'Furniture'}, {name: 'ATK'}]);
+      });
+  }, []);
 
   if (savedCode) {
     const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/inventory/${savedCode}` : '';
@@ -134,7 +171,7 @@ export default function NewInventoryItemPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kategori</label>
             <select
@@ -143,10 +180,10 @@ export default function NewInventoryItemPage() {
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
             >
               <option value="">Pilih kategori...</option>
-              <option>Elektronik</option>
-              <option>Furniture</option>
-              <option>ATK</option>
-              <option>Lainnya</option>
+              {availableCategories.map((cat, idx) => (
+                <option key={idx} value={cat.name}>{cat.name}</option>
+              ))}
+              <option value="Lainnya">Lainnya</option>
             </select>
           </div>
           <div>
@@ -157,6 +194,15 @@ export default function NewInventoryItemPage() {
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Contoh: Gudang Pusat"
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Terdaftar</label>
+            <input
+              type="date"
+              value={addedDate}
+              onChange={(e) => setAddedDate(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
             />
           </div>
         </div>
@@ -218,12 +264,38 @@ export default function NewInventoryItemPage() {
               const file = e.target.files?.[0];
               if (!file) return;
               if (file.size > 5 * 1024 * 1024) {
-                alert('Ukuran file maksimal 5MB!');
+                setInfoModal({ show: true, title: 'File Terlalu Besar', message: 'Ukuran file maksimal yang diperbolehkan adalah 5MB.', type: 'warning' });
                 return;
               }
               const reader = new FileReader();
               reader.onload = (ev) => {
-                setPhoto({ name: file.name, dataUrl: ev.target?.result as string });
+                const img = new Image();
+                img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  let width = img.width;
+                  let height = img.height;
+                  const MAX_SIZE = 800;
+                  
+                  if (width > height && width > MAX_SIZE) {
+                    height *= MAX_SIZE / width;
+                    width = MAX_SIZE;
+                  } else if (height > MAX_SIZE) {
+                    width *= MAX_SIZE / height;
+                    height = MAX_SIZE;
+                  }
+                  
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    setPhoto({ name: file.name, dataUrl: compressedDataUrl, file: file });
+                  } else {
+                    setPhoto({ name: file.name, dataUrl: ev.target?.result as string, file: file });
+                  }
+                };
+                img.src = ev.target?.result as string;
               };
               reader.readAsDataURL(file);
             }}
@@ -280,6 +352,37 @@ export default function NewInventoryItemPage() {
           Simpan Barang
         </button>
       </div>
+
+      {/* Info/Warning Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
+                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+              }`}>
+                <span className="material-symbols-outlined text-3xl">
+                  {infoModal.type === 'success' ? 'check_circle' : infoModal.type === 'warning' ? 'warning' : 'info'}
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">{infoModal.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{infoModal.message}</p>
+              <div className="pt-2">
+                <button 
+                  onClick={() => setInfoModal({ ...infoModal, show: false })}
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${
+                    infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                    infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  Mengerti
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -22,11 +22,15 @@ function formatRupiah(amount: number) {
   return `Rp ${amount.toLocaleString('id-ID')}`;
 }
 
+import api from '@/lib/api';
+
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Semua Kategori');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
+  const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Modal states
   const [editModal, setEditModal] = useState(false);
@@ -34,27 +38,42 @@ export default function InventoryPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '', type: 'success' as 'success' | 'warning' | 'info' });
 
-  useEffect(() => {
-    const existingStr = localStorage.getItem('mock_inventory');
-    if (existingStr) {
-      setInventory(JSON.parse(existingStr));
-    } else {
-      localStorage.setItem('mock_inventory', JSON.stringify(INVENTORY));
-      setInventory(INVENTORY);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [invRes, catRes] = await Promise.all([
+        api.get('/inventory'),
+        api.get('/categories')
+      ]);
+      setInventory(invRes.data);
+      const activeCats = catRes.data.filter((c: any) => c.status === 'active' && c.type === 'categories');
+      setAvailableCategories(activeCats.length > 0 ? activeCats : [{ name: 'Elektronik' }, { name: 'Furniture' }, { name: 'ATK' }]);
+    } catch (err) {
+      console.error(err);
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal memuat data dari server.', type: 'warning' });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const handleDelete = (code: string) => {
     setDeleteConfirm(code);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    const updated = inventory.filter(i => i.code !== deleteConfirm);
-    setInventory(updated);
-    localStorage.setItem('mock_inventory', JSON.stringify(updated));
-    setDeleteConfirm(null);
-    setInfoModal({ show: true, title: 'Berhasil', message: 'Barang berhasil dihapus!', type: 'success' });
+    try {
+      await api.delete(`/inventory/${deleteConfirm}`);
+      fetchData();
+      setDeleteConfirm(null);
+      setInfoModal({ show: true, title: 'Berhasil', message: 'Barang berhasil dihapus!', type: 'success' });
+    } catch (err) {
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal menghapus data.', type: 'warning' });
+    }
   };
 
   const handleOpenEdit = (item: any) => {
@@ -62,19 +81,24 @@ export default function InventoryPage() {
     setEditModal(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editData) return;
-    // Auto-determine status based on qty
-    let newStatus = 'available';
-    if (editData.qty === 0) newStatus = 'out-of-stock';
-    else if (editData.qty <= 5) newStatus = 'low-stock';
-    const updatedItem = { ...editData, status: newStatus };
-    const updated = inventory.map(i => i.code === updatedItem.code ? updatedItem : i);
-    setInventory(updated);
-    localStorage.setItem('mock_inventory', JSON.stringify(updated));
-    setEditModal(false);
-    setInfoModal({ show: true, title: 'Berhasil', message: `Data barang ${updatedItem.name} berhasil diupdate!`, type: 'success' });
+    try {
+      // Auto-determine status based on qty
+      let newStatus = 'available';
+      if (editData.qty === 0) newStatus = 'out-of-stock';
+      else if (editData.qty <= 5) newStatus = 'low-stock';
+      
+      const payload = { ...editData, status: newStatus };
+      
+      await api.put(`/inventory/${editData.code}`, payload);
+      fetchData();
+      setEditModal(false);
+      setInfoModal({ show: true, title: 'Berhasil', message: `Data barang ${editData.name} berhasil diupdate!`, type: 'success' });
+    } catch (err) {
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal update data barang.', type: 'warning' });
+    }
   };
 
   const filteredInventory = inventory.filter(item => {
@@ -141,7 +165,7 @@ export default function InventoryPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nilai Aset</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">Rp {(totalValue / 1000000).toFixed(1)}M</p>
+            <p className="text-lg font-bold text-slate-900 font-mono">{formatRupiah(totalValue)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
             <span className="material-symbols-outlined text-[20px]">payments</span>
@@ -183,9 +207,10 @@ export default function InventoryPage() {
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kategori</label>
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>Semua Kategori</option>
-            <option>Elektronik</option>
-            <option>Furniture</option>
-            <option>ATK</option>
+            {availableCategories.map((cat, idx) => (
+              <option key={idx} value={cat.name}>{cat.name}</option>
+            ))}
+            <option>Lainnya</option>
           </select>
         </div>
         <div className="w-44">

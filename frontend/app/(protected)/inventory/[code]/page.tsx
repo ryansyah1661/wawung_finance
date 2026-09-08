@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -23,10 +23,31 @@ function formatRupiah(amount: number) {
   return `Rp ${amount.toLocaleString('id-ID')}`;
 }
 
+import api from '@/lib/api';
+
 export default function InventoryDetailPage() {
   const params = useParams();
-  const code = params.code as string;
-  const item = INVENTORY.find((i) => i.code === code);
+  const code = decodeURIComponent(params.code as string); // In case of %20 spaces etc.
+  const [item, setItem] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get(`/inventory/${code}`)
+      .then(res => {
+        setItem(res.data);
+      })
+      .catch(err => {
+        console.error(err);
+        setItem(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [code]);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Memuat data barang...</div>;
+  }
 
   if (!item) {
     return (
@@ -115,6 +136,13 @@ export default function InventoryDetailPage() {
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Catatan</p>
               <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200">{item.notes}</p>
+            </div>
+          )}
+
+          {item.photo && (
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Foto Barang</p>
+              <img src={item.photo} alt={item.name} className="mt-2 w-48 h-48 object-cover rounded-xl border border-slate-200 shadow-sm" />
             </div>
           )}
         </div>

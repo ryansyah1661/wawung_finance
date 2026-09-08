@@ -40,40 +40,53 @@ const DATA: Record<TabKey, { name: string; detail: string; status: 'active' | 'i
   ],
 };
 
+import api from '@/lib/api';
+
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('accounts');
-  const [masterData, setMasterData] = useState<typeof DATA>(DATA);
+  const [masterData, setMasterData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<{name: string, detail: string, status: 'active'|'inactive'} | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
   const [formData, setFormData] = useState({ name: '', detail: '', status: 'active' as 'active'|'inactive' });
   
   // UX Modals
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  React.useEffect(() => {
-    const stored = localStorage.getItem('mock_master_data');
-    if (stored) {
-      setMasterData(JSON.parse(stored));
-    } else {
-      localStorage.setItem('mock_master_data', JSON.stringify(DATA));
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/categories');
+      setMasterData(res.data);
+    } catch (err) {
+      console.error(err);
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal memuat data dari server.', type: 'warning' });
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  const handleDelete = (nameToDelete: string) => {
-    setDeleteConfirm(nameToDelete);
   };
 
-  const confirmDelete = () => {
+  React.useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const handleDelete = (id: number) => {
+    setDeleteConfirm(id);
+  };
+
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    const updatedData = { ...masterData };
-    updatedData[activeTab] = updatedData[activeTab].filter(item => item.name !== deleteConfirm);
-    setMasterData(updatedData);
-    localStorage.setItem('mock_master_data', JSON.stringify(updatedData));
-    setDeleteConfirm(null);
-    setInfoModal({ show: true, title: 'Berhasil', message: 'Data berhasil dihapus!', type: 'success' });
+    try {
+      await api.delete(`/categories/${deleteConfirm}`);
+      fetchCategories();
+      setDeleteConfirm(null);
+      setInfoModal({ show: true, title: 'Berhasil', message: 'Data berhasil dihapus!', type: 'success' });
+    } catch (err) {
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal menghapus data.', type: 'warning' });
+    }
   };
 
   const handleOpenAdd = () => {
@@ -84,31 +97,35 @@ export default function MasterDataPage() {
 
   const handleOpenEdit = (item: any) => {
     setEditingItem(item);
-    setFormData({ name: item.name, detail: item.detail, status: item.status });
+    setFormData({ name: item.name, detail: item.code, status: item.status }); // Use code as detail for now to store the detail text
     setIsModalOpen(true);
   };
 
-  const handleSaveModal = (e: React.FormEvent) => {
+  const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedData = { ...masterData };
-    
-    if (editingItem) {
-      // Edit mode
-      updatedData[activeTab] = updatedData[activeTab].map(item => 
-        item.name === editingItem.name ? formData : item
-      );
-    } else {
-      // Add mode
-      updatedData[activeTab] = [...updatedData[activeTab], formData];
+    try {
+      const payload = {
+        name: formData.name,
+        code: formData.detail || `MD-${Date.now()}`,
+        type: activeTab,
+        status: formData.status
+      };
+
+      if (editingItem) {
+        await api.put(`/categories/${editingItem.id}`, payload);
+      } else {
+        await api.post('/categories', payload);
+      }
+      
+      fetchCategories();
+      setIsModalOpen(false);
+      setInfoModal({ show: true, title: 'Berhasil', message: editingItem ? 'Data berhasil diupdate!' : 'Data baru berhasil ditambahkan!', type: 'success' });
+    } catch (err) {
+      setInfoModal({ show: true, title: 'Error', message: 'Gagal menyimpan data ke server.', type: 'warning' });
     }
-    
-    setMasterData(updatedData);
-    localStorage.setItem('mock_master_data', JSON.stringify(updatedData));
-    setIsModalOpen(false);
-    setInfoModal({ show: true, title: 'Berhasil', message: editingItem ? 'Data berhasil diupdate!' : 'Data baru berhasil ditambahkan!', type: 'success' });
   };
 
-  const items = masterData[activeTab] || [];
+  const items = masterData.filter(item => item.type === activeTab) || [];
 
   return (
     <div className="max-w-300 mx-auto space-y-6">
@@ -156,10 +173,14 @@ export default function MasterDataPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {items.map((item) => (
-                <tr key={item.name} className="hover:bg-slate-50 transition-colors group">
+              {loading ? (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-500">Memuat data...</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-500">Belum ada data di kategori ini.</td></tr>
+              ) : items.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="p-3 font-medium text-slate-900">{item.name}</td>
-                  <td className="p-3 text-slate-500">{item.detail}</td>
+                  <td className="p-3 text-slate-500">{item.code}</td>
                   <td className="p-3 text-center">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
@@ -176,7 +197,7 @@ export default function MasterDataPage() {
                       <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                       </button>
-                      <button onClick={() => handleDelete(item.name)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
+                      <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                       </button>
                     </div>
@@ -298,7 +319,7 @@ export default function MasterDataPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Konfirmasi Hapus</h3>
               <p className="text-sm text-slate-500 leading-relaxed">
-                Apakah Anda yakin ingin menghapus data <strong className="text-slate-700">{deleteConfirm}</strong>?
+                Apakah Anda yakin ingin menghapus data ini?
                 Data yang dihapus tidak dapat dikembalikan.
               </p>
               <div className="pt-4 flex gap-3">
