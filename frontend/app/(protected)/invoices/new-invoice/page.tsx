@@ -36,14 +36,14 @@ export default function CreateInvoicePage() {
 
   const total = items.reduce((sum, item) => sum + item.qty * item.price, 0);
 
-  const handleSave = () => {
+  const handleSave = (statusToSave: string) => {
     const newInvoice = {
       id: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
       client,
       issueDate,
       dueDate,
       amount: total,
-      status: 'draft',
+      status: statusToSave,
       notes,
       items
     };
@@ -189,10 +189,10 @@ export default function CreateInvoicePage() {
         >
           Batal
         </Link>
-        <button className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer">
+        <button onClick={() => handleSave('draft')} className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer">
           Simpan sebagai Draft
         </button>
-        <button onClick={handleSave} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
+        <button onClick={() => handleSave('due-soon')} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
           Simpan Invoice
         </button>
       </div>

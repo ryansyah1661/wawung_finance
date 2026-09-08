@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   pending: { label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -15,6 +16,7 @@ function formatRupiah(amount: number | string) {
 }
 
 export default function ReimbursementsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
@@ -59,6 +61,11 @@ export default function ReimbursementsPage() {
     return matchesSearch && matchesStatus && matchesDept;
   });
 
+  const pendingCount = requests.filter(r => !r.status || r.status.toLowerCase() === 'pending').length;
+  const rejectedCount = requests.filter(r => r.status?.toLowerCase() === 'rejected').length;
+  const approvedAmount = requests.filter(r => r.status?.toLowerCase() === 'approved')
+    .reduce((sum, r) => sum + parseInt(String(r.amount || 0).replace(/\D/g, '') || '0', 10), 0);
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
 
@@ -88,7 +95,7 @@ export default function ReimbursementsPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pending</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">2 <span className="text-xs font-normal text-slate-500">items</span></p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{pendingCount} <span className="text-xs font-normal text-slate-500">items</span></p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <span className="material-symbols-outlined text-[20px]">pending_actions</span>
@@ -96,8 +103,8 @@ export default function ReimbursementsPage() {
         </div>
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Approved (Month)</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">Rp 2.1M</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Approved (Total)</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{formatRupiah(approvedAmount)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
             <span className="material-symbols-outlined text-[20px]">check_circle</span>
@@ -106,7 +113,7 @@ export default function ReimbursementsPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rejected</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">1 <span className="text-xs font-normal text-slate-500">items</span></p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{rejectedCount} <span className="text-xs font-normal text-slate-500">items</span></p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <span className="material-symbols-outlined text-[20px]">cancel</span>
@@ -177,7 +184,11 @@ export default function ReimbursementsPage() {
                 const status = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending;
                 const empName = item.employee || item.requester || 'User';
                 return (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <tr 
+                    key={item.id} 
+                    onClick={() => router.push(`/reimbursements/${item.id}`)}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                  >
                     <td className="p-3 font-mono text-xs text-slate-500">{item.id}</td>
                     <td className="p-3 text-slate-500">{item.date || '-'}</td>
                     <td className="p-3">
@@ -203,7 +214,7 @@ export default function ReimbursementsPage() {
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                       </button>
-                      <button className="text-slate-400 hover:text-primary transition-colors cursor-pointer">
+                      <button className="text-slate-400 group-hover:text-primary transition-colors cursor-pointer">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
                       </button>
                     </td>
@@ -224,7 +235,7 @@ export default function ReimbursementsPage() {
         {/* Pagination Footer */}
         <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between">
           <span className="text-slate-500 text-sm">
-            Menampilkan 1-5 dari 5 pengajuan
+            Menampilkan {filteredRequests.length} data
           </span>
           <div className="flex gap-1">
             <button className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer" disabled>

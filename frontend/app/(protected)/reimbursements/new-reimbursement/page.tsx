@@ -12,6 +12,24 @@ export default function NewReimbursementPage() {
   const [category, setCategory] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [attachment, setAttachment] = useState<{name: string, size: number, type: string, dataUrl: string} | null>(null);
+  const [validationError, setValidationError] = useState('');
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAttachment({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          dataUrl: ev.target?.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <div className="max-w-200 mx-auto space-y-6">
@@ -97,10 +115,29 @@ export default function NewReimbursementPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bukti / Nota (Wajib)</label>
-          <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
-            <span className="material-symbols-outlined text-slate-400 text-[28px]">receipt_long</span>
-            <p className="text-sm text-slate-500">Klik untuk upload nota/kwitansi</p>
-            <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
+          <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50">
+            <input 
+              type="file" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={handleFileUpload}
+              accept=".png,.jpg,.jpeg,.pdf"
+            />
+            {attachment ? (
+              <div className="text-center">
+                <span className="material-symbols-outlined text-primary text-[28px]">check_circle</span>
+                <p className="text-sm font-medium text-slate-900 mt-2">{attachment.name}</p>
+                <p className="text-xs text-slate-500">{(attachment.size / 1024 / 1024).toFixed(2)} MB</p>
+                <button type="button" onClick={(e) => { e.preventDefault(); setAttachment(null); }} className="mt-3 text-xs text-rose-600 hover:underline relative z-10">
+                  Hapus / Ganti File
+                </button>
+              </div>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-slate-400 text-[28px]">receipt_long</span>
+                <p className="text-sm text-slate-500">Klik atau drag untuk upload nota/kwitansi</p>
+                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
+              </>
+            )}
           </div>
         </div>
 
@@ -124,15 +161,24 @@ export default function NewReimbursementPage() {
         </Link>
         <button
           onClick={() => {
+            // Validation
+            if (!description.trim()) { setValidationError('Deskripsi wajib diisi.'); return; }
+            if (!amount || amount === '0') { setValidationError('Jumlah wajib diisi.'); return; }
+            if (!category) { setValidationError('Kategori wajib dipilih.'); return; }
+            if (!expenseDate) { setValidationError('Tanggal pengeluaran wajib diisi.'); return; }
+            if (!attachment) { setValidationError('Bukti / Nota wajib dilampirkan.'); return; }
+
             const newReimbursement = {
               id: 'RM-' + Math.floor(Math.random() * 10000),
-              date: expenseDate || new Date().toISOString().split('T')[0],
-              requester: 'Current User', // Mock
-              department: 'General', // Mock
-              description: description || 'Reimbursement Baru',
-              category: category || 'Lainnya',
-              amount: amount || '0',
-              status: 'pending'
+              date: expenseDate,
+              requester: 'Current User',
+              department: 'General',
+              description: description,
+              category: category,
+              amount: amount,
+              status: 'pending',
+              purpose: purpose,
+              attachment: attachment
             };
             const existing = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
             localStorage.setItem('mock_reimbursements', JSON.stringify([newReimbursement, ...existing]));
@@ -161,6 +207,25 @@ export default function NewReimbursementPage() {
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >
               Ke Daftar Reimbursement
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Error Modal */}
+      {validationError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Form Belum Lengkap</h3>
+            <p className="text-slate-500 mb-6">{validationError}</p>
+            <button 
+              onClick={() => setValidationError('')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Mengerti
             </button>
           </div>
         </div>

@@ -43,6 +43,15 @@ const DATA: Record<TabKey, { name: string; detail: string; status: 'active' | 'i
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('accounts');
   const [masterData, setMasterData] = useState<typeof DATA>(DATA);
+  
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<{name: string, detail: string, status: 'active'|'inactive'} | null>(null);
+  const [formData, setFormData] = useState({ name: '', detail: '', status: 'active' as 'active'|'inactive' });
+  
+  // UX Modals
+  const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   React.useEffect(() => {
     const stored = localStorage.getItem('mock_master_data');
@@ -54,10 +63,49 @@ export default function MasterDataPage() {
   }, []);
 
   const handleDelete = (nameToDelete: string) => {
+    setDeleteConfirm(nameToDelete);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
     const updatedData = { ...masterData };
-    updatedData[activeTab] = updatedData[activeTab].filter(item => item.name !== nameToDelete);
+    updatedData[activeTab] = updatedData[activeTab].filter(item => item.name !== deleteConfirm);
     setMasterData(updatedData);
     localStorage.setItem('mock_master_data', JSON.stringify(updatedData));
+    setDeleteConfirm(null);
+    setInfoModal({ show: true, title: 'Berhasil', message: 'Data berhasil dihapus!', type: 'success' });
+  };
+
+  const handleOpenAdd = () => {
+    setEditingItem(null);
+    setFormData({ name: '', detail: '', status: 'active' });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setEditingItem(item);
+    setFormData({ name: item.name, detail: item.detail, status: item.status });
+    setIsModalOpen(true);
+  };
+
+  const handleSaveModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updatedData = { ...masterData };
+    
+    if (editingItem) {
+      // Edit mode
+      updatedData[activeTab] = updatedData[activeTab].map(item => 
+        item.name === editingItem.name ? formData : item
+      );
+    } else {
+      // Add mode
+      updatedData[activeTab] = [...updatedData[activeTab], formData];
+    }
+    
+    setMasterData(updatedData);
+    localStorage.setItem('mock_master_data', JSON.stringify(updatedData));
+    setIsModalOpen(false);
+    setInfoModal({ show: true, title: 'Berhasil', message: editingItem ? 'Data berhasil diupdate!' : 'Data baru berhasil ditambahkan!', type: 'success' });
   };
 
   const items = masterData[activeTab] || [];
@@ -71,7 +119,7 @@ export default function MasterDataPage() {
           <h2 className="text-2xl font-bold text-slate-900">Master Data</h2>
           <p className="text-sm text-slate-500 mt-1">Kelola data referensi yang dipakai di seluruh aplikasi</p>
         </div>
-        <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
+        <button onClick={handleOpenAdd} className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
           Tambah Data
         </button>
@@ -125,7 +173,7 @@ export default function MasterDataPage() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1">
-                      <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
+                      <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                       </button>
                       <button onClick={() => handleDelete(item.name)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Hapus">
@@ -139,6 +187,138 @@ export default function MasterDataPage() {
           </table>
         </div>
       </div>
+
+      {/* Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingItem ? 'Edit Data' : 'Tambah Data Baru'}
+              </h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleSaveModal} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama</label>
+                <input 
+                  type="text" 
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                  placeholder="Masukkan nama..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detail / Keterangan</label>
+                <input 
+                  type="text" 
+                  value={formData.detail}
+                  onChange={(e) => setFormData({...formData, detail: e.target.value})}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                  placeholder="Detail keterangan..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
+                <select 
+                  value={formData.status}
+                  onChange={(e) => setFormData({...formData, status: e.target.value as 'active'|'inactive'})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                >
+                  <option value="active">Aktif</option>
+                  <option value="inactive">Nonaktif</option>
+                </select>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 px-4 py-2.5 bg-primary text-white hover:brightness-110 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+                >
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Info/Success Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
+                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 
+                infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+              }`}>
+                <span className="material-symbols-outlined text-3xl">
+                  {infoModal.type === 'success' ? 'check_circle' : infoModal.type === 'warning' ? 'warning' : 'info'}
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">{infoModal.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{infoModal.message}</p>
+              <div className="pt-2">
+                <button 
+                  onClick={() => setInfoModal({ ...infoModal, show: false })}
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${
+                    infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 
+                    infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  Mengerti
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl">delete_forever</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Konfirmasi Hapus</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Apakah Anda yakin ingin menghapus data <strong className="text-slate-700">{deleteConfirm}</strong>?
+                Data yang dihapus tidak dapat dikembalikan.
+              </p>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer flex justify-center items-center gap-2"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

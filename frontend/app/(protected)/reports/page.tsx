@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const REPORT_TYPES = [
   {
@@ -46,6 +46,124 @@ const RECENT_REPORTS = [
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('this-month');
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ income: 0, expense: 0, profit: 0, margin: 0 });
+  const [recentReports, setRecentReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
+    setTransactions(saved);
+
+    const savedReports = localStorage.getItem('mock_reports');
+    if (savedReports) {
+      setRecentReports(JSON.parse(savedReports));
+    } else {
+      setRecentReports(RECENT_REPORTS);
+      localStorage.setItem('mock_reports', JSON.stringify(RECENT_REPORTS));
+    }
+
+    // Compute summary
+    let totalIncome = 0;
+    let totalExpense = 0;
+    saved.forEach((t: any) => {
+      if (t.type === 'income') totalIncome += Number(t.amount || 0);
+      if (t.type === 'expense') totalExpense += Number(t.amount || 0);
+    });
+    
+    const profit = totalIncome - totalExpense;
+    const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
+    
+    setSummary({
+      income: totalIncome,
+      expense: totalExpense,
+      profit: profit,
+      margin: margin
+    });
+
+    // Compute chart data (last 6 months dynamically based on current date, or simply group existing data)
+    // For simplicity, we'll group by month string (e.g., 'Jan', 'Feb')
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const monthlyData: Record<string, { income: number, expense: number }> = {};
+    
+    saved.forEach((t: any) => {
+      if (!t.date) return;
+      const d = new Date(t.date);
+      const m = months[d.getMonth()];
+      if (!monthlyData[m]) monthlyData[m] = { income: 0, expense: 0 };
+      if (t.type === 'income') monthlyData[m].income += Number(t.amount || 0);
+      if (t.type === 'expense') monthlyData[m].expense += Number(t.amount || 0);
+    });
+
+    // Create array for chart, take the most recent 6 months that have data or just a fixed set of 6 recent months
+    const currentMonthIdx = new Date().getMonth();
+    const chartArr = [];
+    let maxVal = 0;
+    for (let i = 5; i >= 0; i--) {
+      let mIdx = currentMonthIdx - i;
+      if (mIdx < 0) mIdx += 12;
+      const mName = months[mIdx];
+      const data = monthlyData[mName] || { income: 0, expense: 0 };
+      chartArr.push({ month: mName, income: data.income, expense: data.expense });
+      if (data.income > maxVal) maxVal = data.income;
+      if (data.expense > maxVal) maxVal = data.expense;
+    }
+
+    // Normalize to percentages (0-100) for the CSS height
+    const normalizedChart = chartArr.map(d => ({
+      month: d.month,
+      rawIncome: d.income,
+      rawExpense: d.expense,
+      incomePct: maxVal > 0 ? (d.income / maxVal) * 100 : 0,
+      expensePct: maxVal > 0 ? (d.expense / maxVal) * 100 : 0
+    }));
+
+    setChartData(normalizedChart);
+  }, []);
+
+  const formatShortRupiah = (amount: number) => {
+    if (Math.abs(amount) >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
+    if (Math.abs(amount) >= 1000) return `Rp ${(amount / 1000).toFixed(1)}K`;
+    return `Rp ${amount.toLocaleString('id-ID')}`;
+  };
+
+  const downloadReport = (title: string, date: string) => {
+    // Generate simple CSV content
+    const csvRows = [];
+    csvRows.push([`"${title}"`]);
+    csvRows.push([`"Tanggal Dibuat:", "${date}"`]);
+    csvRows.push([]);
+    csvRows.push(['"Ringkasan Transaksi"']);
+    csvRows.push(['"Keterangan"', '"Nilai"']);
+    csvRows.push([`"Total Pendapatan"`, `"${summary.income}"`]);
+    csvRows.push([`"Total Pengeluaran"`, `"${summary.expense}"`]);
+    csvRows.push([`"Laba Bersih"`, `"${summary.profit}"`]);
+
+    const csvContent = csvRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${title.replace(/\s+/g, '_')}_${date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleGenerate = (title: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const newReport = {
+      name: `${title} - Generated`,
+      type: 'CSV',
+      date: today,
+      size: `${Math.floor(Math.random() * 50) + 10} KB`
+    };
+    
+    const updated = [newReport, ...recentReports];
+    setRecentReports(updated);
+    localStorage.setItem('mock_reports', JSON.stringify(updated));
+    
+    downloadReport(newReport.name, newReport.date);
+  };
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -85,7 +203,10 @@ export default function ReportsPage() {
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">{report.description}</p>
             </div>
-            <button className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-primary self-start">
+            <button 
+              onClick={() => handleGenerate(report.title)}
+              className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-primary self-start cursor-pointer hover:underline"
+            >
               Generate
               <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
             </button>
@@ -104,26 +225,25 @@ export default function ReportsPage() {
           </div>
 
           <div className="flex-1 relative min-h-55 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] bg-size[20px_20px] rounded-lg p-4 flex items-end gap-6">
-            {[
-              { month: 'Jan', income: 40, expense: 25 },
-              { month: 'Feb', income: 45, expense: 28 },
-              { month: 'Mar', income: 50, expense: 30 },
-              { month: 'Apr', income: 65, expense: 35 },
-              { month: 'Mei', income: 60, expense: 32 },
-              { month: 'Jun', income: 75, expense: 38 },
-            ].map((d) => (
-              <div key={d.month} className="flex-1 flex flex-col items-center gap-2">
+            {chartData.map((d) => (
+              <div key={d.month} className="flex-1 flex flex-col items-center gap-2 group relative">
+                
+                {/* Tooltip on hover */}
+                <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap z-10 shadow-lg pointer-events-none">
+                  In: {formatShortRupiah(d.rawIncome)} | Out: {formatShortRupiah(d.rawExpense)}
+                </div>
+
                 <div className="w-full flex items-end justify-center gap-1 h-40">
                   <div
-                    className="w-3 bg-emerald-500 rounded-t"
-                    style={{ height: `${d.income}%` }}
+                    className="w-4 bg-emerald-500 rounded-t transition-all duration-500"
+                    style={{ height: `${d.incomePct}%`, minHeight: d.incomePct > 0 ? '4px' : '0' }}
                   ></div>
                   <div
-                    className="w-3 bg-rose-400 rounded-t"
-                    style={{ height: `${d.expense}%` }}
+                    className="w-4 bg-rose-400 rounded-t transition-all duration-500"
+                    style={{ height: `${d.expensePct}%`, minHeight: d.expensePct > 0 ? '4px' : '0' }}
                   ></div>
                 </div>
-                <span className="text-xs text-slate-500">{d.month}</span>
+                <span className="text-xs text-slate-500 font-medium">{d.month}</span>
               </div>
             ))}
           </div>
@@ -140,23 +260,27 @@ export default function ReportsPage() {
 
         {/* Quick Summary */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Ringkasan Periode</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-6">Ringkasan Total Transaksi</h3>
           <div className="space-y-5">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Total Pendapatan</span>
-              <span className="font-mono font-semibold text-emerald-600">Rp 45.2M</span>
+              <span className="font-mono font-semibold text-emerald-600">{formatShortRupiah(summary.income)}</span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Total Pengeluaran</span>
-              <span className="font-mono font-semibold text-rose-600">Rp 12.8M</span>
+              <span className="font-mono font-semibold text-rose-600">{formatShortRupiah(summary.expense)}</span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Laba Bersih</span>
-              <span className="font-mono font-semibold text-slate-900">Rp 32.4M</span>
+              <span className={`font-mono font-semibold ${summary.profit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+                {formatShortRupiah(summary.profit)}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-500">Margin</span>
-              <span className="font-mono font-semibold text-primary">71.7%</span>
+              <span className={`font-mono font-semibold ${summary.margin >= 0 ? 'text-primary' : 'text-rose-600'}`}>
+                {summary.margin.toFixed(1)}%
+              </span>
             </div>
           </div>
         </div>
@@ -179,8 +303,8 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {RECENT_REPORTS.map((report) => (
-                <tr key={report.name} className="hover:bg-slate-50 transition-colors group">
+              {recentReports.map((report, idx) => (
+                <tr key={`${report.name}-${idx}`} className="hover:bg-slate-50 transition-colors group">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
@@ -198,7 +322,10 @@ export default function ReportsPage() {
                   <td className="p-3 text-slate-500">{report.size}</td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download">
+                      <button 
+                        onClick={() => downloadReport(report.name, report.date)}
+                        className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download"
+                      >
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
                       </button>
                     </div>

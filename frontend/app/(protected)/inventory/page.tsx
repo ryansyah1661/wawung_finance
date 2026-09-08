@@ -28,6 +28,12 @@ export default function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('Semua Kategori');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
 
+  // Modal states
+  const [editModal, setEditModal] = useState(false);
+  const [editData, setEditData] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '', type: 'success' as 'success' | 'warning' | 'info' });
+
   useEffect(() => {
     const existingStr = localStorage.getItem('mock_inventory');
     if (existingStr) {
@@ -39,10 +45,36 @@ export default function InventoryPage() {
   }, []);
 
   const handleDelete = (code: string) => {
-    if (!confirm('Apakah anda yakin ingin menghapus barang ini?')) return;
-    const updated = inventory.filter(i => i.code !== code);
+    setDeleteConfirm(code);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    const updated = inventory.filter(i => i.code !== deleteConfirm);
     setInventory(updated);
     localStorage.setItem('mock_inventory', JSON.stringify(updated));
+    setDeleteConfirm(null);
+    setInfoModal({ show: true, title: 'Berhasil', message: 'Barang berhasil dihapus!', type: 'success' });
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setEditData({ ...item });
+    setEditModal(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editData) return;
+    // Auto-determine status based on qty
+    let newStatus = 'available';
+    if (editData.qty === 0) newStatus = 'out-of-stock';
+    else if (editData.qty <= 5) newStatus = 'low-stock';
+    const updatedItem = { ...editData, status: newStatus };
+    const updated = inventory.map(i => i.code === updatedItem.code ? updatedItem : i);
+    setInventory(updated);
+    localStorage.setItem('mock_inventory', JSON.stringify(updated));
+    setEditModal(false);
+    setInfoModal({ show: true, title: 'Berhasil', message: `Data barang ${updatedItem.name} berhasil diupdate!`, type: 'success' });
   };
 
   const filteredInventory = inventory.filter(item => {
@@ -214,7 +246,7 @@ export default function InventoryPage() {
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>qr_code_2</span>
                         </Link>
-                        <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
+                        <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Edit">
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                         </button>
                         <button onClick={() => handleDelete(item.code)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Hapus">
@@ -229,6 +261,122 @@ export default function InventoryPage() {
           </table>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editModal && editData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">Edit Barang</h3>
+              <button onClick={() => setEditModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-lg transition-colors cursor-pointer">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kode</label>
+                  <input type="text" value={editData.code} disabled className="w-full bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-500 text-sm cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</label>
+                  <select value={editData.category} onChange={(e) => setEditData({...editData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm">
+                    <option>Elektronik</option>
+                    <option>Furniture</option>
+                    <option>ATK</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Barang</label>
+                <input type="text" value={editData.name} onChange={(e) => setEditData({...editData, name: e.target.value})} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lokasi</label>
+                <input type="text" value={editData.location} onChange={(e) => setEditData({...editData, location: e.target.value})} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Stok</label>
+                  <input type="number" min="0" value={editData.qty} onChange={(e) => setEditData({...editData, qty: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Satuan</label>
+                  <input type="text" value={editData.unit} onChange={(e) => setEditData({...editData, unit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nilai/Unit (Rp)</label>
+                  <input type="number" min="0" value={editData.value} onChange={(e) => setEditData({...editData, value: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                </div>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setEditModal(false)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer">
+                  Batal
+                </button>
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-primary text-white hover:brightness-110 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl">delete_forever</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Konfirmasi Hapus</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Apakah Anda yakin ingin menghapus barang <strong className="text-slate-700">{deleteConfirm}</strong>? Data yang dihapus tidak dapat dikembalikan.
+              </p>
+              <div className="pt-4 flex gap-3">
+                <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer">
+                  Batal
+                </button>
+                <button onClick={confirmDelete} className="flex-1 px-4 py-2.5 bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer">
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info/Success Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-6 text-center space-y-4">
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
+                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+              }`}>
+                <span className="material-symbols-outlined text-3xl">
+                  {infoModal.type === 'success' ? 'check_circle' : infoModal.type === 'warning' ? 'warning' : 'info'}
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">{infoModal.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{infoModal.message}</p>
+              <div className="pt-2">
+                <button 
+                  onClick={() => setInfoModal({ ...infoModal, show: false })}
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${
+                    infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                    infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  Mengerti
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -169,23 +169,34 @@
     display: block !important;
     overflow: visible !important;
     height: auto !important;
+    min-height: 0 !important;
   }
 
   /* Reset content wrapper */
   [data-layout="content"] {
-    margin-left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     display: block !important;
   }
 
   /* Reset main content area */
   [data-layout="main"] {
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
-    padding: 20px !important;
+  }
+
+  /* Make content full width */
+  .max-w-300 {
+    max-width: 100% !important;
+    margin: 0 !important;
   }
 
   /* Hide interactive buttons */
@@ -198,8 +209,8 @@
     display: none !important;
   }
 
-  /* Ensure no page break inside cards */
-  [data-layout="main"] > div > div {
+  /* Ensure no page break inside individual cards, but allow grid to break */
+  .bg-white.rounded-xl {
     break-inside: avoid;
     page-break-inside: avoid;
   }

@@ -14,6 +14,8 @@ export default function NewInventoryItemPage() {
   const [value, setValue] = useState('');
   const [notes, setNotes] = useState('');
   const [savedCode, setSavedCode] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<{name: string, dataUrl: string} | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     const generatedCode = `INV-A-${Math.floor(100 + Math.random() * 900)}`;
@@ -26,7 +28,8 @@ export default function NewInventoryItemPage() {
       unit,
       value: Number(value.replace(/\D/g, '')) || 0,
       status: Number(qty) > 5 ? 'available' : (Number(qty) > 0 ? 'low-stock' : 'out-of-stock'),
-      notes
+      notes,
+      photo: photo?.dataUrl || null
     };
 
     const existingStr = localStorage.getItem('mock_inventory');
@@ -206,11 +209,50 @@ export default function NewInventoryItemPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Foto Barang (Opsional)</label>
-          <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
-            <span className="material-symbols-outlined text-slate-400 text-[28px]">add_a_photo</span>
-            <p className="text-sm text-slate-500">Klik untuk upload foto</p>
-            <p className="text-xs text-slate-400">PNG, JPG maksimal 5MB</p>
-          </div>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            accept="image/png, image/jpeg, image/jpg"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) {
+                alert('Ukuran file maksimal 5MB!');
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                setPhoto({ name: file.name, dataUrl: ev.target?.result as string });
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+          {photo ? (
+            <div className="relative border border-slate-200 rounded-lg p-3 flex items-center gap-4 bg-slate-50">
+              <img src={photo.dataUrl} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-slate-200" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900 truncate">{photo.name}</p>
+                <p className="text-xs text-slate-500 mt-1">Foto siap disimpan</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => { setPhoto(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+          ) : (
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-slate-400 text-[28px]">add_a_photo</span>
+              <p className="text-sm text-slate-500">Klik untuk upload foto</p>
+              <p className="text-xs text-slate-400">PNG, JPG maksimal 5MB</p>
+            </div>
+          )}
         </div>
 
       </div>

@@ -16,6 +16,11 @@ export default function TransactionsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Custom Modals State
+  const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [editData, setEditData] = useState<any>(null);
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
@@ -40,7 +45,7 @@ export default function TransactionsPage() {
           <button 
             onClick={() => {
               if (transactions.length === 0) {
-                alert('Tidak ada data untuk di-export!');
+                setInfoModal({ show: true, message: 'Tidak ada data untuk di-export!', title: 'Perhatian', type: 'warning' });
                 return;
               }
               import('xlsx').then(XLSX => {
@@ -183,21 +188,14 @@ export default function TransactionsPage() {
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button 
-                          onClick={() => alert(`Fitur Edit untuk transaksi "${trx.description}" sedang dalam pengembangan.`)}
+                          onClick={() => setEditData({ ...trx })}
                           className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" 
                           title="Edit"
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                         </button>
                         <button 
-                          onClick={() => {
-                            if (confirm(`Hapus transaksi "${trx.description}" secara permanen?`)) {
-                              const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-                              const updated = saved.filter((t: any) => t.id !== trx.id);
-                              localStorage.setItem('mock_transactions', JSON.stringify(updated));
-                              setTransactions(prev => prev.filter((t: any) => t.id !== trx.id));
-                            }
-                          }}
+                          onClick={() => setDeleteConfirm(trx)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" 
                           title="Hapus"
                         >
@@ -229,6 +227,189 @@ export default function TransactionsPage() {
         </div>
 
       </div>
+
+      {/* Info Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4 ${
+                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' :
+                'bg-blue-100 text-blue-600'
+              }`}>
+                <span className="material-symbols-outlined text-[32px]">
+                  {infoModal.type === 'success' ? 'check_circle' : 
+                   infoModal.type === 'warning' ? 'warning' : 'info'}
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">{infoModal.title}</h3>
+              <p className="text-slate-500 mb-6">{infoModal.message}</p>
+              <button 
+                onClick={() => setInfoModal({ show: false, message: '', title: '', type: 'info' })}
+                className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer shadow-sm"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">warning</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Hapus Transaksi?</h3>
+              <p className="text-slate-500 mb-6">
+                Apakah Anda yakin ingin menghapus transaksi <strong>"{deleteConfirm.description}"</strong> secara permanen?
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={() => {
+                    const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
+                    const updated = saved.filter((t: any) => t.id !== deleteConfirm.id);
+                    localStorage.setItem('mock_transactions', JSON.stringify(updated));
+                    setTransactions(prev => prev.filter((t: any) => t.id !== deleteConfirm.id));
+                    setDeleteConfirm(null);
+                  }}
+                  className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-lg hover:bg-rose-700 transition-colors cursor-pointer shadow-sm"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editData && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">edit_square</span>
+                Edit Transaksi
+              </h3>
+              <button 
+                onClick={() => setEditData(null)}
+                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal</label>
+                  <input
+                    type="date"
+                    value={editData.date}
+                    onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipe</label>
+                  <select
+                    value={editData.type}
+                    onChange={(e) => setEditData({ ...editData, type: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
+                  >
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan</label>
+                <input
+                  type="text"
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kategori</label>
+                  <select
+                    value={editData.category}
+                    onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
+                  >
+                    <option>Operations</option>
+                    <option>Marketing</option>
+                    <option>Payroll</option>
+                    <option>IT & Tech</option>
+                    <option>Income</option>
+                    <option>Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Akun</label>
+                  <select
+                    value={editData.account}
+                    onChange={(e) => setEditData({ ...editData, account: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
+                  >
+                    <option>Mandiri Bisnis</option>
+                    <option>BCA Utama</option>
+                    <option>Kas Kecil</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah (Rp)</label>
+                <input
+                  type="text"
+                  value={Number(editData.amount).toLocaleString('id-ID')}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setEditData({ ...editData, amount: val ? parseInt(val, 10) : 0 });
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-mono"
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+              <button 
+                onClick={() => setEditData(null)}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-sm"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => {
+                  const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
+                  const updated = saved.map((t: any) => t.id === editData.id ? editData : t);
+                  localStorage.setItem('mock_transactions', JSON.stringify(updated));
+                  setTransactions(updated);
+                  setEditData(null);
+                  setInfoModal({ show: true, message: 'Transaksi berhasil diubah!', title: 'Sukses', type: 'success' });
+                }}
+                className="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer text-sm shadow-sm"
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

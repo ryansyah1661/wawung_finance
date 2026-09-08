@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const INVOICES = [
   {
@@ -58,10 +59,15 @@ function formatRupiah(amount: number) {
 }
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [dateFilter, setDateFilter] = useState('');
+  
+  // Custom Modals
+  const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: '' });
 
   useEffect(() => {
     const existingStr = localStorage.getItem('mock_invoices');
@@ -74,10 +80,15 @@ export default function InvoicesPage() {
   }, []);
 
   const handleDelete = (id: string) => {
-    if (!confirm('Apakah anda yakin ingin menghapus invoice ini?')) return;
-    const updated = invoices.filter(i => i.id !== id);
+    setConfirmModal({ show: true, id });
+  };
+
+  const confirmDelete = () => {
+    if (!confirmModal.id) return;
+    const updated = invoices.filter(i => i.id !== confirmModal.id);
     setInvoices(updated);
     localStorage.setItem('mock_invoices', JSON.stringify(updated));
+    setConfirmModal({ show: false, id: '' });
   };
 
   const filteredInvoices = invoices.filter(inv => {
@@ -102,6 +113,24 @@ export default function InvoicesPage() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
       XLSX.writeFile(workbook, "invoices.xlsx");
     });
+  };
+
+  // Calculate stats
+  const totalOutstanding = invoices
+    .filter(i => i.status === 'overdue' || i.status === 'due-soon')
+    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+  
+  const totalPaid = invoices
+    .filter(i => i.status === 'paid')
+    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
+  const countOverdue = invoices.filter(i => i.status === 'overdue').length;
+  const countDueSoon = invoices.filter(i => i.status === 'due-soon').length;
+
+  const formatShortRupiah = (amount: number) => {
+    if (amount >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `Rp ${(amount / 1000).toFixed(1)}K`;
+    return formatRupiah(amount);
   };
 
   return (
@@ -132,7 +161,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Outstanding</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">Rp 20.6M</p>
+            <p className="text-lg font-bold text-slate-900 font-mono">{formatShortRupiah(totalOutstanding)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <span className="material-symbols-outlined text-[20px]">receipt_long</span>
@@ -141,7 +170,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Overdue</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">1 <span className="text-xs font-normal text-slate-500">invoice</span></p>
+            <p className="text-lg font-bold text-slate-900 font-mono">{countOverdue} <span className="text-xs font-normal text-slate-500">invoice</span></p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <span className="material-symbols-outlined text-[20px]">event_busy</span>
@@ -150,7 +179,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Due Soon</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">1 <span className="text-xs font-normal text-slate-500">invoice</span></p>
+            <p className="text-lg font-bold text-slate-900 font-mono">{countDueSoon} <span className="text-xs font-normal text-slate-500">invoice</span></p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <span className="material-symbols-outlined text-[20px]">schedule</span>
@@ -159,7 +188,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Paid (Month)</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">Rp 35.9M</p>
+            <p className="text-lg font-bold text-slate-900 font-mono">{formatShortRupiah(totalPaid)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
             <span className="material-symbols-outlined text-[20px]">check_circle</span>
@@ -238,10 +267,39 @@ export default function InvoicesPage() {
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="View">
+                        <button 
+                          onClick={() => router.push(`/invoices/${invoice.id}`)}
+                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="View"
+                        >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                         </button>
-                        <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download">
+                        <button 
+                          onClick={() => {
+                            const htmlContent = `
+                              <html>
+                                <head><title>Invoice ${invoice.id}</title></head>
+                                <body style="font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
+                                  <h1>INVOICE ${invoice.id}</h1>
+                                  <hr/>
+                                  <p><strong>Client:</strong> ${invoice.client}</p>
+                                  <p><strong>Tanggal Terbit:</strong> ${invoice.issueDate}</p>
+                                  <p><strong>Jatuh Tempo:</strong> ${invoice.dueDate}</p>
+                                  <p><strong>Total:</strong> Rp ${invoice.amount.toLocaleString('id-ID')}</p>
+                                  <br/>
+                                  <p><em>Dokumen ini di-generate otomatis oleh Wawung Finance.</em></p>
+                                </body>
+                              </html>
+                            `;
+                            const blob = new Blob([htmlContent], { type: 'text/html' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `${invoice.id}.html`;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download"
+                        >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
                         </button>
                         <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Hapus">
@@ -272,6 +330,58 @@ export default function InvoicesPage() {
           </div>
         </div>
       </div>
+
+      {/* Info Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">info</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">{infoModal.title}</h3>
+              <p className="text-slate-500 mb-6">{infoModal.message}</p>
+              <button 
+                onClick={() => setInfoModal({ show: false, message: '', title: '' })}
+                className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">delete_forever</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Hapus Invoice?</h3>
+              <p className="text-slate-500 mb-6">
+                Apakah Anda yakin ingin menghapus invoice <strong>{confirmModal.id}</strong>? Data yang sudah dihapus tidak bisa dikembalikan.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setConfirmModal({ show: false, id: '' })}
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
