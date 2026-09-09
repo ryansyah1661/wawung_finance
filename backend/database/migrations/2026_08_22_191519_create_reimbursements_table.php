@@ -7,17 +7,20 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up(): void
-{
-    Schema::create('reimbursements', function (Blueprint $table) {
-        $table->id();
-        $table->string('request_id')->unique(); // contoh: RB-2023-001
-        $table->string('user_name');
-        $table->date('date');
-        $table->decimal('amount', 15, 2);
-        $table->string('status')->default('Pending'); // Pending, Approved, Rejected
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('reimbursements', function (Blueprint $table) {
+            $table->id();
+            $table->string('request_id')->unique(); // contoh: RB-2023-001
+            $table->string('user_name');
+            $table->string('department')->nullable();
+            $table->string('description')->nullable();
+            $table->date('date');
+            $table->decimal('amount', 15, 2);
+            $table->string('proof_file')->nullable();
+            $table->string('status')->default('Pending'); // Pending, Approved, Rejected
+            $table->timestamps();
+        });
+    }
 
     public function down(): void
     {

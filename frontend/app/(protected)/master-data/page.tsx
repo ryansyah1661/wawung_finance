@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '@/lib/api';
 
 type TabKey = 'accounts' | 'categories' | 'departments' | 'vendors';
 
@@ -11,67 +12,39 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'vendors', label: 'Vendor/Klien', icon: 'storefront' },
 ];
 
-const DATA: Record<TabKey, { name: string; detail: string; status: 'active' | 'inactive' }[]> = {
-  accounts: [
-    { name: 'BCA Utama', detail: 'No. Rek: 1234567890', status: 'active' },
-    { name: 'Mandiri Bisnis', detail: 'No. Rek: 0987654321', status: 'active' },
-    { name: 'Kas Kecil', detail: 'Petty cash - kantor pusat', status: 'active' },
-    { name: 'Kartu Kredit Perusahaan', detail: 'BCA Visa Business', status: 'active' },
-  ],
-  categories: [
-    { name: 'Operations', detail: 'Biaya operasional harian', status: 'active' },
-    { name: 'Marketing', detail: 'Promosi & iklan', status: 'active' },
-    { name: 'Payroll', detail: 'Gaji & tunjangan karyawan', status: 'active' },
-    { name: 'IT & Tech', detail: 'Software, hosting, hardware', status: 'active' },
-    { name: 'Legacy Category', detail: 'Sudah tidak dipakai', status: 'inactive' },
-  ],
-  departments: [
-    { name: 'Sales', detail: '12 karyawan', status: 'active' },
-    { name: 'Marketing', detail: '8 karyawan', status: 'active' },
-    { name: 'Operations', detail: '15 karyawan', status: 'active' },
-    { name: 'Finance', detail: '5 karyawan', status: 'active' },
-    { name: 'HR', detail: '4 karyawan', status: 'active' },
-  ],
-  vendors: [
-    { name: 'PT Alpha', detail: 'Klien - Kontrak retainer', status: 'active' },
-    { name: 'CV Beta', detail: 'Klien - Project based', status: 'active' },
-    { name: 'PT Maju Bersama', detail: 'Klien - Kontrak retainer', status: 'active' },
-    { name: 'Vendor Lama Inc.', detail: 'Sudah tidak aktif', status: 'inactive' },
-  ],
-};
-
-import api from '@/lib/api';
-
 export default function MasterDataPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>('accounts');
+  const [activeTab, setActiveTab] = useState<TabKey>('categories');
   const [masterData, setMasterData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
-  const [formData, setFormData] = useState({ name: '', detail: '', status: 'active' as 'active'|'inactive' });
-  
+  const [formData, setFormData] = useState({ name: '', detail: '', status: 'active' as 'active' | 'inactive' });
+
   // UX Modals
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  const fetchCategories = async () => {
+  const fetchMasterData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/categories');
-      setMasterData(res.data);
+      // Panggil endpoint categories menggunakan parameter type
+      const res = await api.get(`/categories?type=${activeTab}`);
+      const responseData = res.data?.data || res.data;
+
+      setMasterData(Array.isArray(responseData) ? responseData : []);
     } catch (err) {
       console.error(err);
-      setInfoModal({ show: true, title: 'Error', message: 'Gagal memuat data dari server.', type: 'warning' });
+      setMasterData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  React.useEffect(() => {
-    fetchCategories();
-  }, []);
+  useEffect(() => {
+    fetchMasterData();
+  }, [activeTab]);
 
   const handleDelete = (id: number) => {
     setDeleteConfirm(id);
@@ -80,8 +53,8 @@ export default function MasterDataPage() {
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      await api.delete(`/categories/${deleteConfirm}`);
-      fetchCategories();
+      await api.delete(`/${activeTab}/${deleteConfirm}`);
+      fetchMasterData();
       setDeleteConfirm(null);
       setInfoModal({ show: true, title: 'Berhasil', message: 'Data berhasil dihapus!', type: 'success' });
     } catch (err) {
@@ -97,7 +70,11 @@ export default function MasterDataPage() {
 
   const handleOpenEdit = (item: any) => {
     setEditingItem(item);
-    setFormData({ name: item.name, detail: item.code, status: item.status }); // Use code as detail for now to store the detail text
+    setFormData({
+      name: item.name || item.nama || '',
+      detail: item.detail || item.code || item.keterangan || '',
+      status: item.status || 'active'
+    });
     setIsModalOpen(true);
   };
 
@@ -107,6 +84,7 @@ export default function MasterDataPage() {
       const payload = {
         name: formData.name,
         code: formData.detail || `MD-${Date.now()}`,
+        detail: formData.detail,
         type: activeTab,
         status: formData.status
       };
@@ -116,8 +94,8 @@ export default function MasterDataPage() {
       } else {
         await api.post('/categories', payload);
       }
-      
-      fetchCategories();
+
+      fetchMasterData();
       setIsModalOpen(false);
       setInfoModal({ show: true, title: 'Berhasil', message: editingItem ? 'Data berhasil diupdate!' : 'Data baru berhasil ditambahkan!', type: 'success' });
     } catch (err) {
@@ -125,7 +103,8 @@ export default function MasterDataPage() {
     }
   };
 
-  const items = masterData.filter(item => item.type === activeTab) || [];
+  // Guarding aman menggunakan Array.isArray agar tidak pernah melempar TypeError
+  const items = Array.isArray(masterData) ? masterData : [];
 
   return (
     <div className="max-w-300 mx-auto space-y-6">
@@ -148,11 +127,10 @@ export default function MasterDataPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-              activeTab === tab.key
-                ? 'bg-primary/10 text-primary'
-                : 'text-slate-500 hover:bg-slate-100'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === tab.key
+              ? 'bg-primary/10 text-primary'
+              : 'text-slate-500 hover:bg-slate-100'
+              }`}
           >
             <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
             {tab.label}
@@ -177,19 +155,18 @@ export default function MasterDataPage() {
                 <tr><td colSpan={4} className="p-8 text-center text-slate-500">Memuat data...</td></tr>
               ) : items.length === 0 ? (
                 <tr><td colSpan={4} className="p-8 text-center text-slate-500">Belum ada data di kategori ini.</td></tr>
-              ) : items.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="p-3 font-medium text-slate-900">{item.name}</td>
-                  <td className="p-3 text-slate-500">{item.code}</td>
+              ) : items.map((item, index) => (
+                <tr key={item.id || index} className="hover:bg-slate-50 transition-colors group">
+                  <td className="p-3 font-medium text-slate-900">{item.name || item.nama}</td>
+                  <td className="p-3 text-slate-500">{item.detail || item.code || item.keterangan || '-'}</td>
                   <td className="p-3 text-center">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                        item.status === 'active'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${(item.status || 'active') === 'active'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-slate-100 text-slate-500'
+                        }`}
                     >
-                      {item.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                      {(item.status || 'active') === 'active' ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </td>
                   <td className="p-3">
@@ -217,7 +194,7 @@ export default function MasterDataPage() {
               <h3 className="text-lg font-bold text-slate-900">
                 {editingItem ? 'Edit Data' : 'Tambah Data Baru'}
               </h3>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-lg transition-colors cursor-pointer"
               >
@@ -227,10 +204,10 @@ export default function MasterDataPage() {
             <form onSubmit={handleSaveModal} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
                   placeholder="Masukkan nama..."
@@ -238,10 +215,10 @@ export default function MasterDataPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detail / Keterangan</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.detail}
-                  onChange={(e) => setFormData({...formData, detail: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
                   required
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
                   placeholder="Detail keterangan..."
@@ -249,9 +226,9 @@ export default function MasterDataPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
-                <select 
+                <select
                   value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value as 'active'|'inactive'})}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
                 >
                   <option value="active">Aktif</option>
@@ -259,15 +236,15 @@ export default function MasterDataPage() {
                 </select>
               </div>
               <div className="pt-4 flex gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="flex-1 px-4 py-2.5 bg-primary text-white hover:brightness-110 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
                 >
                   Simpan
@@ -283,10 +260,9 @@ export default function MasterDataPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 text-center space-y-4">
-              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
-                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
                 infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
-              }`}>
+                }`}>
                 <span className="material-symbols-outlined text-3xl">
                   {infoModal.type === 'success' ? 'check_circle' : infoModal.type === 'warning' ? 'warning' : 'info'}
                 </span>
@@ -294,12 +270,11 @@ export default function MasterDataPage() {
               <h3 className="text-xl font-bold text-slate-900">{infoModal.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{infoModal.message}</p>
               <div className="pt-2">
-                <button 
+                <button
                   onClick={() => setInfoModal({ ...infoModal, show: false })}
-                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${
-                    infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
                     infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                    }`}
                 >
                   Mengerti
                 </button>
@@ -323,13 +298,13 @@ export default function MasterDataPage() {
                 Data yang dihapus tidak dapat dikembalikan.
               </p>
               <div className="pt-4 flex gap-3">
-                <button 
+                <button
                   onClick={() => setDeleteConfirm(null)}
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   onClick={confirmDelete}
                   className="flex-1 px-4 py-2.5 bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer flex justify-center items-center gap-2"
                 >

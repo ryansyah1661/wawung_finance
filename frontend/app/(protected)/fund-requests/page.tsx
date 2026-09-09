@@ -20,18 +20,50 @@ export default function FundRequestsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
+
   const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Fetch Data dari API Backend
+  const fetchFundRequests = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg('');
+      const res = await fetch('/api/fund-requests');
+
+      if (!res.ok) {
+        throw new Error('Gagal mengambil data dari server');
+      }
+
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : data.data || []);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Terjadi kesalahan saat memuat data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('mock_fund_requests') || '[]');
-    setRequests(data);
+    fetchFundRequests();
   }, []);
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const updated = requests.filter(r => r.id !== id);
-    setRequests(updated);
-    localStorage.setItem('mock_fund_requests', JSON.stringify(updated));
+    if (!confirm('Apakah Anda yakin ingin menghapus pengajuan ini?')) return;
+
+    try {
+      const res = await fetch(`/api/fund-requests/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Gagal menghapus data');
+
+      setRequests(prev => prev.filter(r => r.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus data');
+    }
   };
 
   const handleExport = () => {
@@ -50,14 +82,20 @@ export default function FundRequestsPage() {
   };
 
   const filteredRequests = requests.filter(r => {
-    const matchesSearch = (r.purpose?.toLowerCase().includes(searchQuery.toLowerCase()) || r.id?.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = statusFilter === 'All Status' || r.status?.toLowerCase() === statusFilter.toLowerCase();
-    const matchesDept = departmentFilter === 'All Departments' || r.department?.toLowerCase() === departmentFilter.toLowerCase();
+    const searchLow = searchQuery.toLowerCase();
+    const reqNum = (r.request_number || r.id || '').toString().toLowerCase();
+    const purposeText = (r.purpose || '').toLowerCase();
+    const applicant = (r.applicant_name || r.requester || '').toLowerCase();
+
+    const matchesSearch = reqNum.includes(searchLow) || purposeText.includes(searchLow) || applicant.includes(searchLow);
+    const matchesStatus = statusFilter === 'All Status' || (r.status || 'Pending').toLowerCase() === statusFilter.toLowerCase();
+    const matchesDept = departmentFilter === 'All Departments' || (r.department || '').toLowerCase() === departmentFilter.toLowerCase();
+
     return matchesSearch && matchesStatus && matchesDept;
   });
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className="max-w-1600 mx-auto space-y-6">
 
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -88,7 +126,9 @@ export default function FundRequestsPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pending</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">1 <span className="text-xs font-normal text-slate-500">items</span></p>
+            <p className="text-xl font-bold text-slate-900 font-mono">
+              {requests.filter(r => r.status?.toLowerCase() === 'pending').length} <span className="text-xs font-normal text-slate-500">items</span>
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <span className="material-symbols-outlined text-[20px]">pending_actions</span>
@@ -97,7 +137,9 @@ export default function FundRequestsPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Approved (Month)</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">Rp 2.05M</p>
+            <p className="text-lg font-bold text-slate-900 font-mono">
+              {formatRupiah(requests.filter(r => r.status?.toLowerCase() === 'approved').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0))}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
             <span className="material-symbols-outlined text-[20px]">check_circle</span>
@@ -106,7 +148,9 @@ export default function FundRequestsPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rejected</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">1 <span className="text-xs font-normal text-slate-500">items</span></p>
+            <p className="text-xl font-bold text-slate-900 font-mono">
+              {requests.filter(r => r.status?.toLowerCase() === 'rejected').length} <span className="text-xs font-normal text-slate-500">items</span>
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <span className="material-symbols-outlined text-[20px]">cancel</span>
@@ -128,7 +172,7 @@ export default function FundRequestsPage() {
         </div>
         <div className="w-44">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select 
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -141,7 +185,7 @@ export default function FundRequestsPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
-          <select 
+          <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -172,52 +216,73 @@ export default function FundRequestsPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredRequests.map((item) => {
-                const status = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending;
-                return (
-                  <tr
-                    key={item.id}
-                    onClick={() => router.push(`/fund-requests/${item.id}`)}
-                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                  >
-                    <td className="p-3 font-mono text-xs font-medium text-slate-900">{item.id}</td>
-                    <td className="p-3 text-slate-500">{item.requestDate || item.date || '-'}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
-                          {item.requester ? item.requester.split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'U'}
-                        </div>
-                        <span className="font-medium text-slate-900">{item.requester || 'User'}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-500">{item.department || '-'}</td>
-                    <td className="p-3 text-slate-700 max-w-70 truncate">{item.purpose || '-'}</td>
-                    <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(item.amount)}</td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center flex justify-end gap-2">
-                      <button 
-                        onClick={(e) => handleDelete(e, item.id)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
-                      </button>
-                      <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style={{ fontSize: '18px' }}>
-                        chevron_right
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredRequests.length === 0 && (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-slate-500">
+                    Memuat data...
+                  </td>
+                </tr>
+              ) : errorMsg ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-rose-500 font-medium">
+                    {errorMsg}
+                  </td>
+                </tr>
+              ) : filteredRequests.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center text-slate-500">
                     Tidak ada data pengajuan dana.
                   </td>
                 </tr>
+              ) : (
+                filteredRequests.map((item) => {
+                  const statusKey = (item.status || 'pending').toLowerCase();
+                  const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
+
+                  const displayNo = item.request_number || `#${item.id}`;
+                  const rawDate = item.need_date || item.created_at;
+                  const displayDate = rawDate ? new Date(rawDate).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }): '-';
+                  const displayApplicant = item.applicant_name || item.requester || 'User';
+                  const displayDept = item.department || '-';
+
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => router.push(`/fund-requests/${item.id}`)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                    >
+                      <td className="p-3 font-mono text-xs font-medium text-slate-900">{displayNo}</td>
+                      <td className="p-3 text-slate-500">{displayDate}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
+                            {displayApplicant.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <span className="font-medium text-slate-900">{displayApplicant}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-500">{displayDept}</td>
+                      <td className="p-3 text-slate-700 max-w-70 truncate">{item.purpose || '-'}</td>
+                      <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(item.amount)}</td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center flex justify-end gap-2">
+                        <button
+                          onClick={(e) => handleDelete(e, item.id)}
+                          className="text-slate-400 hover:text-rose-500 transition-colors"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                        </button>
+                        <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style={{ fontSize: '18px' }}>
+                          chevron_right
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -226,7 +291,7 @@ export default function FundRequestsPage() {
         {/* Pagination Footer */}
         <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between">
           <span className="text-slate-500 text-sm">
-            Menampilkan 1-4 dari 4 pengajuan
+            Menampilkan {filteredRequests.length} pengajuan
           </span>
           <div className="flex gap-1">
             <button className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer" disabled>

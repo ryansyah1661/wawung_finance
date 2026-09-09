@@ -24,99 +24,128 @@ export default function SuperadminDashboard() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [dueInvoices, setDueInvoices] = useState<any[]>([]);
-  const [categoryBreakdown, setCategoryBreakdown] = useState<{name: string, amount: number, color: string}[]>([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{ name: string, amount: number, color: string }[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load transactions
-    const transactions = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-    
-    let incomeTotal = 0;
-    let expenseTotal = 0;
-    const catMap: Record<string, number> = {};
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
 
-    transactions.forEach((t: any) => {
-      const amt = Number(t.amount) || 0;
-      if (t.type === 'Income') {
-        incomeTotal += amt;
-      } else {
-        expenseTotal += amt;
-        const cat = t.category || 'Lainnya';
-        catMap[cat] = (catMap[cat] || 0) + amt;
-      }
-    });
+        // Fetch paralel dari API Laravel
+        const [resTrx, resFR, resRB, resInv] = await Promise.all([
+          fetch('http://localhost:8000/api/transactions'),
+          fetch('http://localhost:8000/api/fund-requests'),
+          fetch('http://localhost:8000/api/reimbursements'),
+          fetch('http://localhost:8000/api/invoices')
+        ]);
 
-    setTotalIncome(incomeTotal);
-    setTotalExpense(expenseTotal);
-    setRecentTransactions(transactions.slice(0, 5));
+        const rawTrx = await resTrx.json();
+        const rawFR = await resFR.json();
+        const rawRB = await resRB.json();
+        const rawInv = await resInv.json();
 
-    // Category breakdown for donut chart
-    const catColors: Record<string, string> = {
-      'Operations': '#3b82f6',
-      'Marketing': '#f59e0b',
-      'Payroll': '#8b5cf6',
-      'IT & Tech': '#06b6d4',
-      'Income': '#10b981',
-      'Lainnya': '#64748b',
-    };
-    const breakdown = Object.entries(catMap).map(([name, amount]) => ({
-      name,
-      amount,
-      color: catColors[name] || '#64748b',
-    }));
-    setCategoryBreakdown(breakdown);
+        const transactions = rawTrx.data || rawTrx || [];
+        const fundRequests = rawFR.data || rawFR || [];
+        const reimbursements = rawRB.data || rawRB || [];
+        const invoices = rawInv.data || rawInv || [];
 
-    // Build monthly chart data from transactions
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-    const monthlyIncome: Record<string, number> = {};
-    const monthlyExpense: Record<string, number> = {};
-    
-    transactions.forEach((t: any) => {
-      if (t.date) {
-        const d = new Date(t.date);
-        const monthLabel = monthNames[d.getMonth()];
-        if (t.type === 'Income') {
-          monthlyIncome[monthLabel] = (monthlyIncome[monthLabel] || 0) + (Number(t.amount) || 0);
-        } else {
-          monthlyExpense[monthLabel] = (monthlyExpense[monthLabel] || 0) + (Number(t.amount) || 0);
+        // 1. OLAH DATA TRANSAKSI
+        let incomeTotal = 0;
+        let expenseTotal = 0;
+        const catMap: Record<string, number> = {};
+
+        transactions.forEach((t: any) => {
+          const amt = Number(t.amount) || 0;
+          const isIncome = (t.type || '').toLowerCase() === 'income';
+
+          if (isIncome) {
+            incomeTotal += amt;
+          } else {
+            expenseTotal += amt;
+            const cat = t.category || 'Lainnya';
+            catMap[cat] = (catMap[cat] || 0) + amt;
+          }
+        });
+
+        setTotalIncome(incomeTotal);
+        setTotalExpense(expenseTotal);
+        setRecentTransactions(transactions.slice(0, 5));
+
+        // 2. BREAKDOWN KATEGORI (DONUT CHART)
+        const catColors: Record<string, string> = {
+          'Operations': '#3b82f6',
+          'Marketing': '#f59e0b',
+          'Payroll': '#8b5cf6',
+          'IT & Tech': '#06b6d4',
+          'Income': '#10b981',
+          'Lainnya': '#64748b',
+        };
+        const breakdown = Object.entries(catMap).map(([name, amount]) => ({
+          name,
+          amount,
+          color: catColors[name] || '#64748b',
+        }));
+        setCategoryBreakdown(breakdown);
+
+        // 3. TREN ARUS KAS (AREA CHART 6 BULAN TERAKHIR)
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        const monthlyIncome: Record<string, number> = {};
+        const monthlyExpense: Record<string, number> = {};
+
+        transactions.forEach((t: any) => {
+          if (t.date) {
+            const d = new Date(t.date);
+            const monthLabel = monthNames[d.getMonth()];
+            const amt = Number(t.amount) || 0;
+            const isIncome = (t.type || '').toLowerCase() === 'income';
+
+            if (isIncome) {
+              monthlyIncome[monthLabel] = (monthlyIncome[monthLabel] || 0) + amt;
+            } else {
+              monthlyExpense[monthLabel] = (monthlyExpense[monthLabel] || 0) + amt;
+            }
+          }
+        });
+
+        const now = new Date();
+        const monthData = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const label = monthNames[d.getMonth()];
+          monthData.push({
+            name: label,
+            pemasukan: monthlyIncome[label] || 0,
+            pengeluaran: monthlyExpense[label] || 0,
+          });
         }
+        setChartData(monthData);
+
+        // 4. DATA APPROVAL & INVOICE
+        const pendingFR = fundRequests.filter((f: any) => (f.status || 'Pending').toLowerCase() === 'pending');
+        const pendingRB = reimbursements.filter((r: any) => (r.status || 'Pending').toLowerCase() === 'pending');
+
+        const allPending = [
+          ...pendingFR.map((f: any) => ({ ...f, source: 'Fund Request' })),
+          ...pendingRB.map((r: any) => ({ ...r, source: 'Reimbursement' })),
+        ];
+        setPendingCount(allPending.length);
+        setPendingItems(allPending.slice(0, 4));
+
+        const upcoming = invoices
+          .filter((inv: any) => !['paid', 'lunas'].includes((inv.status || '').toLowerCase()))
+          .slice(0, 3);
+        setDueInvoices(upcoming);
+
+      } catch (error) {
+        console.error('Gagal memuat data dashboard dari DB:', error);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    // Get current month and 5 months before
-    const now = new Date();
-    const monthData = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const label = monthNames[d.getMonth()];
-      monthData.push({
-        name: label,
-        pemasukan: monthlyIncome[label] || 0,
-        pengeluaran: monthlyExpense[label] || 0,
-      });
-    }
-    setChartData(monthData);
-
-    // Load pending fund requests & reimbursements
-    const fundRequests = JSON.parse(localStorage.getItem('mock_fund_requests') || '[]');
-    const reimbursements = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
-    
-    const pendingFR = fundRequests.filter((f: any) => (f.status || 'Pending') === 'Pending');
-    const pendingRB = reimbursements.filter((r: any) => (r.status || 'Pending') === 'Pending');
-    
-    const allPending = [
-      ...pendingFR.map((f: any) => ({ ...f, source: 'Fund Request' })),
-      ...pendingRB.map((r: any) => ({ ...r, source: 'Reimbursement' })),
-    ];
-    setPendingCount(allPending.length);
-    setPendingItems(allPending.slice(0, 4));
-
-    // Load invoices for due dates
-    const invoices = JSON.parse(localStorage.getItem('mock_invoices') || '[]');
-    const upcoming = invoices
-      .filter((inv: any) => inv.status !== 'Paid' && inv.status !== 'Lunas')
-      .slice(0, 3);
-    setDueInvoices(upcoming);
+    fetchDashboardData();
   }, []);
 
   const formatRp = (n: number) => {
@@ -128,9 +157,17 @@ export default function SuperadminDashboard() {
   const saldo = totalIncome - totalExpense;
   const totalCatAmount = categoryBreakdown.reduce((s, c) => s + c.amount, 0);
 
+  if (loading) {
+    return (
+      <div className="p-12 text-center text-slate-500 font-medium">
+        Memuat data dashboard...
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
-      
+
       {/* Greeting */}
       <header className="mb-2">
         <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-1 tracking-tight">Selamat datang, Ahmad!</h2>
@@ -139,7 +176,7 @@ export default function SuperadminDashboard() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         {/* Pemasukan */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-xl"></div>
@@ -155,7 +192,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-md w-fit">
               <span className="material-symbols-outlined text-[13px]">arrow_upward</span>
-              {recentTransactions.filter((t: any) => t.type === 'Income').length} transaksi masuk
+              {recentTransactions.filter((t: any) => (t.type || '').toLowerCase() === 'income').length} transaksi masuk
             </div>
           </div>
         </div>
@@ -175,7 +212,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="flex items-center gap-1 text-xs text-rose-600 font-medium bg-rose-50 px-2 py-1 rounded-md w-fit">
               <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
-              {recentTransactions.filter((t: any) => t.type === 'Expense').length} transaksi keluar
+              {recentTransactions.filter((t: any) => (t.type || '').toLowerCase() === 'expense').length} transaksi keluar
             </div>
           </div>
         </div>
@@ -201,7 +238,7 @@ export default function SuperadminDashboard() {
         </div>
 
         {/* Menunggu Approval */}
-        <div 
+        <div
           onClick={() => router.push('/fund-requests')}
           className="bg-white border border-amber-200 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow group cursor-pointer relative overflow-hidden"
         >
@@ -228,7 +265,7 @@ export default function SuperadminDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Area Chart */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
@@ -238,7 +275,7 @@ export default function SuperadminDashboard() {
               <div className="flex items-center gap-2"><span className="w-3 h-1.5 rounded-full bg-rose-400"></span> Pengeluaran</div>
             </div>
           </div>
-          
+
           <div className="flex-1 min-h-[280px]">
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -254,9 +291,9 @@ export default function SuperadminDashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v: number) => v >= 1000000 ? `${(v/1000000).toFixed(0)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : `${v}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v: number) => v >= 1000000 ? `${(v / 1000000).toFixed(0)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                  contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   labelStyle={{ color: '#64748b', fontSize: '11px', marginBottom: '6px', fontWeight: 600 }}
                   itemStyle={{ color: '#0f172a', fontSize: '12px', padding: '2px 0', fontWeight: 500 }}
                   formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
@@ -277,13 +314,13 @@ export default function SuperadminDashboard() {
         {/* Donut Chart Area */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">Komposisi Pengeluaran</h3>
-          
+
           <div className="flex-1 flex items-center justify-center relative my-2">
             <div className="w-full relative flex items-center justify-center" style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#f1f5f9'}]}
+                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{ name: 'Kosong', amount: 1, color: '#f1f5f9' }]}
                     cx="50%"
                     cy="50%"
                     innerRadius={68}
@@ -292,18 +329,18 @@ export default function SuperadminDashboard() {
                     dataKey="amount"
                     stroke="none"
                   >
-                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{name: 'Kosong', amount: 1, color: '#f1f5f9'}]).map((entry, index) => (
+                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{ name: 'Kosong', amount: 1, color: '#f1f5f9' }]).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '10px', padding: '8px 12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                    contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '10px', padding: '8px 12px' }}
                     itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
                     formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              
+
               {/* Center label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">Total Keluar</span>
@@ -334,12 +371,12 @@ export default function SuperadminDashboard() {
 
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Transaksi Terbaru Table */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl flex flex-col lg:col-span-2 overflow-hidden">
           <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="text-lg font-semibold text-slate-900">Transaksi Terbaru</h3>
-            <button 
+            <button
               onClick={() => router.push('/transactions')}
               className="text-primary hover:underline text-xs transition-colors flex items-center gap-1 font-semibold cursor-pointer"
             >
@@ -358,30 +395,30 @@ export default function SuperadminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
-                {recentTransactions.length > 0 ? recentTransactions.map((trx: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3.5 px-6 text-slate-500">{trx.date}</td>
-                    <td className="py-3.5 px-6 text-slate-900 font-medium">{trx.description}</td>
-                    <td className="py-3.5 px-6 text-slate-500">{trx.category}</td>
-                    <td className={`py-3.5 px-6 font-mono text-right font-medium ${trx.type === 'Income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {trx.type === 'Income' ? '+' : '-'}Rp {Number(trx.amount).toLocaleString('id-ID')}
-                    </td>
-                    <td className="py-3.5 px-6 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] ${
-                        trx.type === 'Income' 
-                          ? 'bg-emerald-50 text-emerald-700' 
-                          : 'bg-rose-50 text-rose-700'
-                      }`}>
-                        {trx.type}
-                      </span>
-                    </td>
-                  </tr>
-                )) : (
+                {recentTransactions.length > 0 ? recentTransactions.map((trx: any, idx: number) => {
+                  const isIncome = (trx.type || '').toLowerCase() === 'income';
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3.5 px-6 text-slate-500">{trx.date}</td>
+                      <td className="py-3.5 px-6 text-slate-900 font-medium">{trx.description}</td>
+                      <td className="py-3.5 px-6 text-slate-500">{trx.category}</td>
+                      <td className={`py-3.5 px-6 font-mono text-right font-medium ${isIncome ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        {isIncome ? '+' : '-'}Rp {Number(trx.amount).toLocaleString('id-ID')}
+                      </td>
+                      <td className="py-3.5 px-6 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] uppercase ${isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                          }`}>
+                          {trx.type}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }) : (
                   <tr>
                     <td colSpan={5} className="py-8 px-6 text-center text-slate-400 text-sm">
                       <div className="flex flex-col items-center gap-2">
                         <span className="material-symbols-outlined text-[32px] text-slate-300">inbox</span>
-                        Belum ada transaksi. <button onClick={() => router.push('/transactions/income-expense?type=income')} className="text-primary hover:underline cursor-pointer">Buat transaksi pertama!</button>
+                        Belum ada transaksi di database.
                       </div>
                     </td>
                   </tr>
@@ -393,7 +430,7 @@ export default function SuperadminDashboard() {
 
         {/* Sidebar Cards */}
         <div className="flex flex-col gap-6">
-          
+
           {/* Menunggu Approval List */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -424,7 +461,7 @@ export default function SuperadminDashboard() {
               </div>
             )}
             {pendingCount > 4 && (
-              <button 
+              <button
                 onClick={() => router.push('/fund-requests')}
                 className="w-full mt-4 text-center text-xs text-primary hover:underline font-semibold cursor-pointer"
               >
@@ -444,7 +481,7 @@ export default function SuperadminDashboard() {
                 {dueInvoices.map((inv: any, idx: number) => (
                   <li key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border-l-4 border-l-rose-500 border border-slate-200">
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-slate-900">{inv.id || `INV-${idx + 1}`} — {inv.clientName || 'Client'}</div>
+                      <div className="text-xs font-medium text-slate-900">{inv.number || inv.id || `INV-${idx + 1}`} — {inv.clientName || 'Client'}</div>
                       <div className="text-[11px] text-rose-600 font-medium mt-1">Status: {inv.status || 'Unpaid'}</div>
                     </div>
                     <div className="text-xs text-slate-900 font-mono font-semibold">

@@ -1,24 +1,112 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 type TransactionType = 'income' | 'expense';
 
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 export default function InputTransactionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialType = (searchParams.get('type') as TransactionType) || 'expense';
+
   const [type, setType] = useState<TransactionType>(initialType);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+
+  // Form States
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [account, setAccount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(getTodayDate());
   const [notes, setNotes] = useState('');
+
+  // States untuk menyimpan Data dari API
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [accountsList, setAccountsList] = useState<any[]>([]);
+  const [loadingMaster, setLoadingMaster] = useState(true);
+
+  // 1. FETCH DATA KATEGORI & AKUN SPESIFIK BERDASARKAN TYPE
+  useEffect(() => {
+    const fetchMasterData = async () => {
+      try {
+        setLoadingMaster(true);
+        // Memanggil API dengan query parameter type dan status active
+        const [resCategories, resAccounts] = await Promise.all([
+          fetch('http://localhost:8000/api/categories?type=categories&status=active'),
+          fetch('http://localhost:8000/api/categories?type=accounts&status=active')
+        ]);
+
+        const catData = await resCategories.json();
+        const accData = await resAccounts.json();
+
+        if (catData.success || catData.data) {
+          setCategoriesList(catData.data || catData);
+        }
+        if (accData.success || accData.data) {
+          setAccountsList(accData.data || accData);
+        }
+      } catch (error) {
+        console.error('Gagal mengambil Master Data:', error);
+      } finally {
+        setLoadingMaster(false);
+      }
+    };
+
+    fetchMasterData();
+  }, []);
+
+  // 2. HANDLER SUBMIT KE API LARAVEL
+  const handleSubmit = async () => {
+    if (!description || !amount || !category || !account) {
+      alert('Harap isi semua bidang yang wajib!');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const numericAmount = parseInt(amount.replace(/\D/g, '') || '0', 10);
+
+      const res = await fetch('http://localhost:8000/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          date,
+          description,
+          category,
+          account,
+          amount: numericAmount,
+          type,
+          notes,
+        }),
+      });
+
+      if (res.ok) {
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          router.push('/transactions');
+        }, 1500);
+      } else {
+        alert('Gagal menyimpan transaksi!');
+      }
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      alert('Terjadi kesalahan koneksi ke server.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-200 mx-auto space-y-6">
@@ -40,19 +128,19 @@ export default function InputTransactionPage() {
       {/* Type Toggle */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-1.5 flex gap-1">
         <button
+          type="button"
           onClick={() => setType('expense')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-            type === 'expense' ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-100'
-          }`}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${type === 'expense' ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-100'
+            }`}
         >
           <span className="material-symbols-outlined text-[18px]">remove</span>
           Expense
         </button>
         <button
+          type="button"
           onClick={() => setType('income')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-            type === 'income' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-100'
-          }`}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${type === 'income' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-100'
+            }`}
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
           Income
@@ -104,28 +192,32 @@ export default function InputTransactionPage() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+              disabled={loadingMaster}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer disabled:bg-slate-50"
             >
-              <option value="">Pilih kategori...</option>
-              <option>Operations</option>
-              <option>Marketing</option>
-              <option>Payroll</option>
-              <option>IT & Tech</option>
-              {type === 'income' && <option>Income</option>}
+              <option value="">{loadingMaster ? 'Memuat data...' : 'Pilih kategori...'}</option>
+              {categoriesList.map((item: any) => (
+                <option key={item.id} value={item.name || item.nama}>
+                  {item.name || item.nama}
+                </option>
+              ))}
             </select>
           </div>
+
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Akun</label>
             <select
               value={account}
               onChange={(e) => setAccount(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+              disabled={loadingMaster}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer disabled:bg-slate-50"
             >
-              <option value="">Pilih akun...</option>
-              <option>BCA Utama</option>
-              <option>Mandiri Bisnis</option>
-              <option>Kas Kecil</option>
-              <option>Kartu Kredit Perusahaan</option>
+              <option value="">{loadingMaster ? 'Memuat data...' : 'Pilih akun...'}</option>
+              {accountsList.map((item: any) => (
+                <option key={item.id} value={item.name || item.nama}>
+                  {item.name || item.nama}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -143,9 +235,9 @@ export default function InputTransactionPage() {
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lampiran (Opsional)</label>
           <label className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
-            <input 
-              type="file" 
-              className="hidden" 
+            <input
+              type="file"
+              className="hidden"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               accept=".png,.jpg,.jpeg,.pdf"
             />
@@ -176,29 +268,13 @@ export default function InputTransactionPage() {
           Batal
         </Link>
         <button
-          onClick={() => {
-            const newTrx = {
-              id: 'TRX-' + Math.floor(Math.random() * 10000),
-              date: date || new Date().toISOString().split('T')[0],
-              description: description || 'Transaksi Baru',
-              category: category || 'Lainnya',
-              account: account || 'Kas',
-              amount: parseInt(amount.replace(/\D/g, '') || '0', 10),
-              type: type === 'income' ? 'Income' : 'Expense'
-            };
-            const existing = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-            localStorage.setItem('mock_transactions', JSON.stringify([newTrx, ...existing]));
-            
-            setShowSuccessModal(true);
-            setTimeout(() => {
-              router.push('/transactions');
-            }, 2000);
-          }}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors cursor-pointer shadow-sm ${
-            type === 'expense' ? 'bg-rose-600 hover:brightness-110' : 'bg-primary hover:brightness-110'
-          }`}
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors cursor-pointer shadow-sm disabled:opacity-50 ${type === 'expense' ? 'bg-rose-600 hover:brightness-110' : 'bg-primary hover:brightness-110'
+            }`}
         >
-          Simpan Transaksi
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
         </button>
       </div>
 
@@ -210,7 +286,7 @@ export default function InputTransactionPage() {
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
             <p className="text-slate-500 mb-6">Transaksi Anda telah berhasil disimpan.</p>
-            <button 
+            <button
               onClick={() => router.push('/transactions')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >

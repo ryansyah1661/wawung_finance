@@ -13,5 +13,6 @@ class Transaction extends Model
         'account',
         'amount',
         'type', // 'income' atau 'expense'
+        'status', // 'verified' atau 'pending'
     ];
 }

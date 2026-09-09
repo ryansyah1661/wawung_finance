@@ -1,22 +1,90 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function NewFundRequestPage() {
   const router = useRouter();
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [purpose, setPurpose] = useState('');
   const [amount, setAmount] = useState('');
   const [neededDate, setNeededDate] = useState('');
   const [description, setDescription] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        alert('Ukuran file maksimal 5MB');
+        return;
+      }
+      setAttachment(selectedFile);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const cleanAmount = parseInt(amount.replace(/\D/g, ''), 10);
+    if (!purpose || !cleanAmount || !neededDate) {
+      setErrorMsg('Harap isi semua kolom wajib!');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg('');
+
+      // Menggunakan FormData karena Laravel butuh multipart jika ada file upload
+      const formData = new FormData();
+      formData.append('purpose', purpose);
+      formData.append('amount', cleanAmount.toString());
+      formData.append('need_date', neededDate);
+      formData.append('applicant_name', 'Ryan Syah'); // Nilai default / ganti dengan session user
+      formData.append('department', 'Finance');       // Nilai default / ganti dengan session user
+      if (description) formData.append('description', description);
+      if (attachment) formData.append('attachment', attachment);
+
+      const res = await fetch('/api/fund-requests', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.message || 'Gagal mengirimkan pengajuan dana ke server.');
+      }
+
+      setShowSuccessModal(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Terjadi kesalahan sistem saat menyimpan data.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="max-w-200 mx-auto space-y-6">
-
+    <div className="max-w-[800px] mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -31,13 +99,21 @@ export default function NewFundRequestPage() {
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-5">
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium">
+          {errorMsg}
+        </div>
+      )}
 
+      {/* Form Card */}
+      <form onSubmit={handleSubmit} className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-5">
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Keperluan Singkat</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            Keperluan Singkat <span className="text-rose-500">*</span>
+          </label>
           <input
             type="text"
+            required
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="Contoh: Biaya transportasi kunjungan klien"
@@ -47,9 +123,12 @@ export default function NewFundRequestPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah Pengajuan (Rp)</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Jumlah Pengajuan (Rp) <span className="text-rose-500">*</span>
+            </label>
             <input
               type="text"
+              required
               value={amount}
               onChange={(e) => {
                 const rawValue = e.target.value.replace(/\D/g, '');
@@ -60,9 +139,12 @@ export default function NewFundRequestPage() {
             />
           </div>
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Dibutuhkan</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Tanggal Dibutuhkan <span className="text-rose-500">*</span>
+            </label>
             <input
               type="date"
+              required
               value={neededDate}
               onChange={(e) => setNeededDate(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
@@ -82,18 +164,14 @@ export default function NewFundRequestPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lampiran Pendukung (Opsional)</label>
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={fileInputRef}
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                setAttachment(e.target.files[0]);
-              }
-            }}
-            className="hidden" 
+            onChange={handleFileChange}
+            className="hidden"
             accept=".png,.jpg,.jpeg,.pdf"
           />
-          <div 
+          <div
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50 hover:bg-slate-100"
           >
@@ -115,75 +193,42 @@ export default function NewFundRequestPage() {
           </div>
         </div>
 
-      </div>
+        {/* Info Box */}
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
+          <span className="material-symbols-outlined text-blue-600 text-[20px]">info</span>
+          <p className="text-sm text-blue-800">
+            Pengajuan akan berstatus <span className="font-semibold">Pending Approval</span> hingga direview oleh Superadmin.
+          </p>
+        </div>
 
-      {/* Info Box */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <span className="material-symbols-outlined text-blue-600 text-[20px]">info</span>
-        <p className="text-sm text-blue-800">
-          Pengajuan akan berstatus <span className="font-semibold">Pending Approval</span> hingga direview oleh Superadmin.
-        </p>
-      </div>
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <Link
+            href="/fund-requests"
+            className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+          >
+            Batal
+          </Link>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+          >
+            {isSubmitting ? 'Mengirim...' : 'Ajukan Dana'}
+          </button>
+        </div>
+      </form>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
-        <Link
-          href="/fund-requests"
-          className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-        >
-          Batal
-        </Link>
-        <button
-          onClick={async () => {
-            let attachmentData = null;
-            if (attachment) {
-              const reader = new FileReader();
-              const dataUrl: string = await new Promise((resolve) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(attachment);
-              });
-              attachmentData = {
-                name: attachment.name,
-                size: attachment.size,
-                type: attachment.type,
-                dataUrl
-              };
-            }
-            const newReq = {
-              id: 'REQ-' + Math.floor(Math.random() * 10000),
-              purpose: purpose || 'Pengajuan Baru',
-              amount: amount || '0',
-              neededDate: neededDate || new Date().toISOString().split('T')[0],
-              description: description || '-',
-              status: 'Pending',
-              requestDate: new Date().toISOString().split('T')[0],
-              requester: 'User (Anda)',
-              department: 'General',
-              attachment: attachmentData
-            };
-            const existing = JSON.parse(localStorage.getItem('mock_fund_requests') || '[]');
-            localStorage.setItem('mock_fund_requests', JSON.stringify([newReq, ...existing]));
-            
-            setShowSuccessModal(true);
-            setTimeout(() => {
-              router.push('/fund-requests');
-            }, 2000);
-          }}
-          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm"
-        >
-          Ajukan Dana
-        </button>
-      </div>
-
+      {/* Modal Sukses */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-            <p className="text-slate-500 mb-6">Pengajuan dana telah berhasil disimpan.</p>
-            <button 
+            <p className="text-slate-500 mb-6">Pengajuan dana telah berhasil dikirimkan ke server.</p>
+            <button
               onClick={() => router.push('/fund-requests')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >
@@ -192,7 +237,6 @@ export default function NewFundRequestPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

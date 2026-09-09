@@ -12,10 +12,10 @@ return new class extends Migration
         $table->id();
         $table->date('date');
         $table->string('description');
-        $table->string('category'); // Operations, IT & Tech, dll
-        $table->string('account');  // BCA Utama, Kas Kecil, dll
-        $table->string('type');     // Income / Expense
-        $table->decimal('amount', 15, 2); // Jumlah uang
+        $table->string('category');
+        $table->string('account');
+        $table->string('type');
+        $table->decimal('amount', 15, 2);
         $table->string('status')->default('Verified'); // Verified / Pending
         $table->timestamps();
     });

@@ -14,6 +14,7 @@ interface LineItem {
 export default function CreateInvoicePage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [client, setClient] = useState('');
   const [issueDate, setIssueDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -36,31 +37,50 @@ export default function CreateInvoicePage() {
 
   const total = items.reduce((sum, item) => sum + item.qty * item.price, 0);
 
-  const handleSave = (statusToSave: string) => {
-    const newInvoice = {
-      id: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+  const handleSave = async (statusToSave: string) => {
+    if (!client || !issueDate || !dueDate) {
+      alert('Mohon lengkapi Nama Klien, Tanggal Terbit, dan Jatuh Tempo.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const payload = {
       client,
       issueDate,
       dueDate,
       amount: total,
       status: statusToSave,
       notes,
-      items
+      items,
     };
 
-    const existingStr = localStorage.getItem('mock_invoices');
-    const existing = existingStr ? JSON.parse(existingStr) : [];
-    localStorage.setItem('mock_invoices', JSON.stringify([newInvoice, ...existing]));
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-    setShowSuccess(true);
-    setTimeout(() => {
-      router.push('/invoices');
-    }, 2000);
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan invoice ke server.');
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push('/invoices');
+      }, 1500);
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan sistem saat menyimpan.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="max-w-[900px] mx-auto space-y-6">
-
+    <div className="max-w-225 mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -115,8 +135,9 @@ export default function CreateInvoicePage() {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Item Tagihan</h3>
           <button
+            type="button"
             onClick={addItem}
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary cursor-pointer hover:underline"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
             Tambah Item
@@ -154,6 +175,7 @@ export default function CreateInvoicePage() {
                 Rp {(item.qty * item.price).toLocaleString('id-ID')}
               </span>
               <button
+                type="button"
                 onClick={() => removeItem(item.id)}
                 disabled={items.length === 1}
                 className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
@@ -189,14 +211,25 @@ export default function CreateInvoicePage() {
         >
           Batal
         </Link>
-        <button onClick={() => handleSave('draft')} className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer">
-          Simpan sebagai Draft
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => handleSave('draft')}
+          className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+        >
+          {isSubmitting ? 'Menyimpan...' : 'Simpan sebagai Draft'}
         </button>
-        <button onClick={() => handleSave('due-soon')} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm">
-          Simpan Invoice
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => handleSave('due-soon')}
+          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+        >
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Invoice'}
         </button>
       </div>
 
+      {/* Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center space-y-4 animate-in fade-in zoom-in duration-200">
@@ -204,11 +237,10 @@ export default function CreateInvoicePage() {
               <span className="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900">Invoice Berhasil Disimpan</h3>
-            <p className="text-slate-500 text-sm">Data invoice telah disimpan. Mengalihkan ke halaman daftar invoice...</p>
+            <p className="text-slate-500 text-sm">Data invoice telah berhasil dikirim ke server. Mengalihkan ke halaman daftar invoice...</p>
           </div>
         </div>
       )}
-
     </div>
   );
 }

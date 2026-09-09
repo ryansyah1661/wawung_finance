@@ -9,7 +9,7 @@ function formatRupiah(amount: number | string) {
   return `Rp ${num.toLocaleString('id-ID')}`;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string, icon: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: string }> = {
   pending: { label: 'Pending Approval', bg: 'bg-amber-50', text: 'text-amber-700', icon: 'hourglass_empty' },
   approved: { label: 'Approved', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: 'check_circle' },
   rejected: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700', icon: 'cancel' },
@@ -23,41 +23,69 @@ export default function ReimbursementDetail() {
   const [requestData, setRequestData] = useState<any>(null);
   const [approvalNote, setApprovalNote] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'Approved' | 'Rejected' | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
+  // 1. Fetch data dari API berdasarkan ID
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
-    const found = data.find((r: any) => r.id === id);
-    setRequestData(found);
-    setIsLoading(false);
+    const fetchDetail = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`/api/reimbursements/${id}`);
+        if (!res.ok) throw new Error('Data tidak ditemukan');
+        const data = await res.json();
+        setRequestData(data);
+      } catch (err) {
+        setRequestData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) fetchDetail();
   }, [id]);
 
-  const executeAction = () => {
+  // 2. Kirim update status approval ke API
+  const executeAction = async () => {
     if (!confirmAction) return;
-    
-    const data = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
-    const updated = data.map((r: any) => {
-      if (r.id === id) {
-        return { ...r, status: confirmAction, approvalNote };
-      }
-      return r;
-    });
-    localStorage.setItem('mock_reimbursements', JSON.stringify(updated));
-    setSuccessMessage(`Pengajuan berhasil di-${confirmAction.toLowerCase()}!`);
-    setConfirmAction(null);
-    setShowSuccess(true);
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`/api/reimbursements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: confirmAction,
+          approvalNote: approvalNote,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Gagal memperbarui status pengajuan');
+
+      const updatedData = await res.json();
+      setRequestData(updatedData);
+      setSuccessMessage(`Pengajuan berhasil di-${confirmAction.toLowerCase()}!`);
+      setConfirmAction(null);
+      setShowSuccess(true);
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) return <div className="p-10 text-center text-slate-500">Loading data...</div>;
-  
+
   if (!requestData) {
     return (
       <div className="p-10 text-center space-y-4">
         <p className="text-slate-500">Data reimbursement {id} tidak ditemukan.</p>
-        <button onClick={() => router.push('/reimbursements')} className="text-primary hover:underline">Kembali ke Daftar Reimbursement</button>
+        <button onClick={() => router.push('/reimbursements')} className="text-primary hover:underline cursor-pointer">
+          Kembali ke Daftar Reimbursement
+        </button>
       </div>
     );
   }
@@ -68,7 +96,7 @@ export default function ReimbursementDetail() {
 
   return (
     <div className="max-w-300 mx-auto space-y-6">
-      
+
       {/* Page Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -95,17 +123,17 @@ export default function ReimbursementDetail() {
 
       {/* Main Grid Content */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
+
         {/* Left Side: Informasi Utama & Lampiran */}
         <div className="xl:col-span-2 space-y-6">
-          
+
           {/* Informasi Utama Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">info</span>
               Informasi Utama
             </h3>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
               <div>
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nomor Pengajuan</p>
@@ -115,7 +143,7 @@ export default function ReimbursementDetail() {
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kategori</p>
                 <p className="text-sm text-slate-900 font-medium">{requestData.category || '-'}</p>
               </div>
-              
+
               <div className="col-span-full">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Karyawan</p>
                 <div className="flex items-center gap-3 mt-1">
@@ -163,7 +191,7 @@ export default function ReimbursementDetail() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <button 
+                  <button
                     onClick={() => {
                       if (requestData.attachment?.dataUrl) {
                         setShowPreview(true);
@@ -175,7 +203,7 @@ export default function ReimbursementDetail() {
                   >
                     <span className="material-symbols-outlined text-[18px]">visibility</span>
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       if (requestData.attachment?.dataUrl) {
                         const link = document.createElement('a');
@@ -201,7 +229,7 @@ export default function ReimbursementDetail() {
 
         {/* Right Side: Approval Action & Timeline */}
         <div className="space-y-6">
-          
+
           {/* Approval Action Card */}
           {(!requestData.status || requestData.status.toLowerCase() === 'pending') && (
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
@@ -209,10 +237,10 @@ export default function ReimbursementDetail() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Catatan Approval (Opsional)</label>
-                  <textarea 
+                  <textarea
                     value={approvalNote}
                     onChange={(e) => setApprovalNote(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none h-24 transition-all" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none h-24 transition-all"
                     placeholder="Masukkan catatan atau alasan..."
                   />
                 </div>
@@ -234,7 +262,7 @@ export default function ReimbursementDetail() {
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-6">Timeline</h3>
             <div className="relative pl-4 space-y-6 before:absolute before:inset-y-2 before:left-1.75 before:w-px before:bg-slate-200">
-              
+
               {requestData.status && requestData.status.toLowerCase() !== 'pending' && (
                 <div className="relative">
                   <div className={`absolute -left-5.75 w-3 h-3 ${status.text.replace('text-', 'bg-')} rounded-full ring-4 ring-white shadow-sm`}></div>
@@ -283,17 +311,19 @@ export default function ReimbursementDetail() {
                 Apakah Anda yakin ingin melakukan <strong>{confirmAction}</strong> pada pengajuan ini? Tindakan ini tidak dapat dibatalkan.
               </p>
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setConfirmAction(null)}
-                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                  disabled={isSubmitting}
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   onClick={executeAction}
-                  className={`flex-1 py-2.5 ${confirmAction === 'Approved' ? 'bg-emerald-600' : 'bg-rose-600'} text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer`}
+                  disabled={isSubmitting}
+                  className={`flex-1 py-2.5 ${confirmAction === 'Approved' ? 'bg-emerald-600' : 'bg-rose-600'} text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer disabled:opacity-50`}
                 >
-                  Ya, {confirmAction}
+                  {isSubmitting ? 'Memproses...' : `Ya, ${confirmAction}`}
                 </button>
               </div>
             </div>
@@ -311,7 +341,7 @@ export default function ReimbursementDetail() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
               <p className="text-slate-500 mb-8">{successMessage}</p>
-              <button 
+              <button
                 onClick={() => router.push('/reimbursements')}
                 className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
@@ -334,25 +364,25 @@ export default function ReimbursementDetail() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{requestData.attachment.name}</p>
-                  <p className="text-xs text-slate-500">{(requestData.attachment.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p className="text-xs text-slate-500">{((requestData.attachment.size || 0) / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => {
                     const link = document.createElement('a');
                     link.href = requestData.attachment.dataUrl;
                     link.download = requestData.attachment.name || 'attachment';
                     link.click();
                   }}
-                  className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" 
+                  className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                   title="Download"
                 >
                   <span className="material-symbols-outlined text-[20px]">download</span>
                 </button>
-                <button 
-                  onClick={() => setShowPreview(false)} 
-                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" 
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                   title="Tutup"
                 >
                   <span className="material-symbols-outlined text-[20px]">close</span>
@@ -362,13 +392,13 @@ export default function ReimbursementDetail() {
             {/* Content */}
             <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-slate-50">
               {requestData.attachment.type?.startsWith('image/') ? (
-                <img 
-                  src={requestData.attachment.dataUrl} 
+                <img
+                  src={requestData.attachment.dataUrl}
                   alt={requestData.attachment.name}
                   className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm"
                 />
               ) : requestData.attachment.type === 'application/pdf' ? (
-                <iframe 
+                <iframe
                   src={requestData.attachment.dataUrl}
                   className="w-full h-[70vh] rounded-lg border border-slate-200"
                   title="PDF Preview"

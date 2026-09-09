@@ -7,17 +7,22 @@ import { useRouter } from 'next/navigation';
 export default function NewReimbursementPage() {
   const router = useRouter();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [attachment, setAttachment] = useState<{name: string, size: number, type: string, dataUrl: string} | null>(null);
+  const [attachment, setAttachment] = useState<{ name: string; size: number; type: string; dataUrl: string } | null>(null);
   const [validationError, setValidationError] = useState('');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationError('Ukuran file maksimal adalah 5MB.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (ev) => {
         setAttachment({
@@ -28,6 +33,49 @@ export default function NewReimbursementPage() {
         });
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async () => {
+    // 1. Validasi Input
+    if (!description.trim()) { setValidationError('Deskripsi wajib diisi.'); return; }
+    if (!amount || amount === '0') { setValidationError('Jumlah wajib diisi.'); return; }
+    if (!category) { setValidationError('Kategori wajib dipilih.'); return; }
+    if (!expenseDate) { setValidationError('Tanggal pengeluaran wajib diisi.'); return; }
+    if (!attachment) { setValidationError('Bukti / Nota wajib dilampirkan.'); return; }
+
+    try {
+      setIsSubmitting(true);
+
+      // Clean angka amount dari format Rupiah
+      const cleanAmount = parseInt(amount.replace(/\D/g, ''), 10);
+
+      const payload = {
+        date: expenseDate,
+        description: description,
+        category: category,
+        amount: cleanAmount,
+        purpose: purpose,
+        attachment: attachment,
+      };
+
+      // 2. Kirim Data Pengajuan Baru ke API
+      const res = await fetch('/api/reimbursements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.message || 'Gagal menyimpan pengajuan reimbursement');
+      }
+
+      setShowSuccessModal(true);
+    } catch (err: any) {
+      setValidationError(err.message || 'Terjadi kesalahan pada server.');
+    } font - semibold {
+      setIsSubmitting(false);
     }
   };
 
@@ -116,8 +164,8 @@ export default function NewReimbursementPage() {
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bukti / Nota (Wajib)</label>
           <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50">
-            <input 
-              type="file" 
+            <input
+              type="file"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={handleFileUpload}
               accept=".png,.jpg,.jpeg,.pdf"
@@ -160,40 +208,15 @@ export default function NewReimbursementPage() {
           Batal
         </Link>
         <button
-          onClick={() => {
-            // Validation
-            if (!description.trim()) { setValidationError('Deskripsi wajib diisi.'); return; }
-            if (!amount || amount === '0') { setValidationError('Jumlah wajib diisi.'); return; }
-            if (!category) { setValidationError('Kategori wajib dipilih.'); return; }
-            if (!expenseDate) { setValidationError('Tanggal pengeluaran wajib diisi.'); return; }
-            if (!attachment) { setValidationError('Bukti / Nota wajib dilampirkan.'); return; }
-
-            const newReimbursement = {
-              id: 'RM-' + Math.floor(Math.random() * 10000),
-              date: expenseDate,
-              requester: 'Current User',
-              department: 'General',
-              description: description,
-              category: category,
-              amount: amount,
-              status: 'pending',
-              purpose: purpose,
-              attachment: attachment
-            };
-            const existing = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
-            localStorage.setItem('mock_reimbursements', JSON.stringify([newReimbursement, ...existing]));
-            
-            setShowSuccessModal(true);
-            setTimeout(() => {
-              router.push('/reimbursements');
-            }, 2000);
-          }}
-          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
         >
-          Ajukan Reimbursement
+          {isSubmitting ? 'Mengirim...' : 'Ajukan Reimbursement'}
         </button>
       </div>
 
+      {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
@@ -201,8 +224,8 @@ export default function NewReimbursementPage() {
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-            <p className="text-slate-500 mb-6">Pengajuan reimbursement telah berhasil disimpan.</p>
-            <button 
+            <p className="text-slate-500 mb-6">Pengajuan reimbursement telah berhasil dikirim ke server.</p>
+            <button
               onClick={() => router.push('/reimbursements')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >
@@ -212,16 +235,16 @@ export default function NewReimbursementPage() {
         </div>
       )}
 
-      {/* Validation Error Modal */}
+      {/* Validation / Server Error Modal */}
       {validationError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
             <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-[32px]">warning</span>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Form Belum Lengkap</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
             <p className="text-slate-500 mb-6">{validationError}</p>
-            <button 
+            <button
               onClick={() => setValidationError('')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >

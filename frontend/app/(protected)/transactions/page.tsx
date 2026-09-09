@@ -16,24 +16,96 @@ export default function TransactionsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Custom Modals State
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [editData, setEditData] = useState<any>(null);
 
+  // 1. FETCH DATA DARI API LARAVEL
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/transactions');
+      const result = await res.json();
+
+      if (result.success) {
+        // Pagination Laravel membungkus list data di result.data.data
+        const dataFromApi = result.data.data;
+
+        // Filter data di sisi frontend
+        const filtered = dataFromApi.filter((t: any) => {
+          const matchSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            String(t.id).toLowerCase().includes(searchQuery.toLowerCase());
+          const matchType = filterType === 'All Types' || t.type?.toLowerCase() === filterType.toLowerCase();
+          const matchCategory = filterCategory === 'All Categories' || t.category === filterCategory;
+          const matchDate = !filterDate || t.date === filterDate;
+          return matchSearch && matchType && matchCategory && matchDate;
+        });
+
+        setTransactions(filtered);
+      }
+    } catch (error) {
+      console.error('Gagal mengambil data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-    const filtered = saved.filter((t: any) => {
-      const matchSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.id?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchType = filterType === 'All Types' || t.type === filterType;
-      const matchCategory = filterCategory === 'All Categories' || t.category === filterCategory;
-      const matchDate = !filterDate || t.date === filterDate;
-      return matchSearch && matchType && matchCategory && matchDate;
-    });
-    setTransactions(filtered);
-    setLoading(false);
+    fetchTransactions();
   }, [searchQuery, filterType, filterCategory, filterDate]);
+
+  // 2. HAPUS DATA VIA API (DELETE)
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/transactions/${deleteConfirm.id}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (res.ok) {
+        setDeleteConfirm(null);
+        fetchTransactions();
+        setInfoModal({ show: true, message: 'Transaksi berhasil dihapus!', title: 'Sukses', type: 'success' });
+      }
+    } catch (error) {
+      console.error('Gagal menghapus transaksi:', error);
+    }
+  };
+
+  // 3. UPDATE DATA VIA API (PUT)
+  const handleUpdate = async () => {
+    if (!editData) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/transactions/${editData.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          date: editData.date,
+          description: editData.description,
+          category: editData.category,
+          account: editData.account,
+          type: editData.type,
+          amount: editData.amount,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok && result.success) {
+        setEditData(null);
+        fetchTransactions();
+        setInfoModal({ show: true, message: 'Transaksi berhasil diubah!', title: 'Sukses', type: 'success' });
+      }
+    } catch (error) {
+      console.error('Gagal mengupdate transaksi:', error);
+    }
+  };
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -42,7 +114,7 @@ export default function TransactionsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-900">Semua Transaksi</h2>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button 
+          <button
             onClick={() => {
               if (transactions.length === 0) {
                 setInfoModal({ show: true, message: 'Tidak ada data untuk di-export!', title: 'Perhatian', type: 'warning' });
@@ -93,7 +165,7 @@ export default function TransactionsPage() {
         </div>
         <div className="w-40">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type</label>
-          <select 
+          <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -105,7 +177,7 @@ export default function TransactionsPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-          <select 
+          <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -128,7 +200,7 @@ export default function TransactionsPage() {
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
           />
         </div>
-        <button 
+        <button
           onClick={() => {
             setSearchQuery('');
             setFilterType('All Types');
@@ -177,26 +249,26 @@ export default function TransactionsPage() {
                     <td className="p-3 text-slate-500">{trx.date}</td>
                     <td className="p-3 font-medium text-slate-900">{trx.description}</td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${trx.type === 'Income' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${trx.type?.toLowerCase() === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
                         {trx.category}
                       </span>
                     </td>
                     <td className="p-3 text-slate-500">{trx.account}</td>
-                    <td className={`p-3 text-right font-mono font-medium ${trx.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {trx.type === 'Income' ? '+ ' : '- '} Rp {Number(trx.amount).toLocaleString('id-ID')}
+                    <td className={`p-3 text-right font-mono font-medium ${trx.type?.toLowerCase() === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {trx.type?.toLowerCase() === 'income' ? '+ ' : '- '} Rp {Number(trx.amount).toLocaleString('id-ID')}
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button 
+                        <button
                           onClick={() => setEditData({ ...trx })}
-                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" 
+                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           title="Edit"
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                         </button>
-                        <button 
+                        <button
                           onClick={() => setDeleteConfirm(trx)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" 
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           title="Hapus"
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
@@ -233,19 +305,18 @@ export default function TransactionsPage() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 text-center">
-              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4 ${
-                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4 ${infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
                 infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' :
-                'bg-blue-100 text-blue-600'
-              }`}>
+                  'bg-blue-100 text-blue-600'
+                }`}>
                 <span className="material-symbols-outlined text-[32px]">
-                  {infoModal.type === 'success' ? 'check_circle' : 
-                   infoModal.type === 'warning' ? 'warning' : 'info'}
+                  {infoModal.type === 'success' ? 'check_circle' :
+                    infoModal.type === 'warning' ? 'warning' : 'info'}
                 </span>
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">{infoModal.title}</h3>
               <p className="text-slate-500 mb-6">{infoModal.message}</p>
-              <button 
+              <button
                 onClick={() => setInfoModal({ show: false, message: '', title: '', type: 'info' })}
                 className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer shadow-sm"
               >
@@ -269,20 +340,14 @@ export default function TransactionsPage() {
                 Apakah Anda yakin ingin menghapus transaksi <strong>"{deleteConfirm.description}"</strong> secara permanen?
               </p>
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setDeleteConfirm(null)}
                   className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
-                  onClick={() => {
-                    const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-                    const updated = saved.filter((t: any) => t.id !== deleteConfirm.id);
-                    localStorage.setItem('mock_transactions', JSON.stringify(updated));
-                    setTransactions(prev => prev.filter((t: any) => t.id !== deleteConfirm.id));
-                    setDeleteConfirm(null);
-                  }}
+                <button
+                  onClick={handleDelete}
                   className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-lg hover:bg-rose-700 transition-colors cursor-pointer shadow-sm"
                 >
                   Ya, Hapus
@@ -302,7 +367,7 @@ export default function TransactionsPage() {
                 <span className="material-symbols-outlined text-primary">edit_square</span>
                 Edit Transaksi
               </h3>
-              <button 
+              <button
                 onClick={() => setEditData(null)}
                 className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
               >
@@ -327,12 +392,12 @@ export default function TransactionsPage() {
                     onChange={(e) => setEditData({ ...editData, type: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
                   >
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
+                    <option value="expense">expense</option>
+                    <option value="income">income</option>
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan</label>
                 <input
@@ -387,21 +452,14 @@ export default function TransactionsPage() {
               </div>
             </div>
             <div className="p-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
-              <button 
+              <button
                 onClick={() => setEditData(null)}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-sm"
               >
                 Batal
               </button>
-              <button 
-                onClick={() => {
-                  const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-                  const updated = saved.map((t: any) => t.id === editData.id ? editData : t);
-                  localStorage.setItem('mock_transactions', JSON.stringify(updated));
-                  setTransactions(updated);
-                  setEditData(null);
-                  setInfoModal({ show: true, message: 'Transaksi berhasil diubah!', title: 'Sukses', type: 'success' });
-                }}
+              <button
+                onClick={handleUpdate}
                 className="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer text-sm shadow-sm"
               >
                 Simpan Perubahan

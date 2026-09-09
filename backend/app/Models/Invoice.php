@@ -5,18 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Reimbursement extends Model
+class Invoice extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'request_id',
-        'user_name',
-        'department',
-        'description',
-        'date',
+        'invoice_number',
+        'client_name',
+        'issue_date',
+        'due_date',
         'amount',
-        'proof_file',
         'status',
     ];
 }

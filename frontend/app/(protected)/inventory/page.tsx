@@ -2,15 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const INVENTORY = [
-  { code: 'INV-A-001', name: 'Laptop Dell Latitude 5420', category: 'Elektronik', location: 'Gudang Pusat', qty: 8, unit: 'unit', status: 'available', value: 12000000 },
-  { code: 'INV-A-002', name: 'Kursi Kantor Ergonomis', category: 'Furniture', location: 'Lantai 2', qty: 24, unit: 'unit', status: 'available', value: 1500000 },
-  { code: 'INV-A-003', name: 'Printer Epson L3210', category: 'Elektronik', location: 'Ruang Admin', qty: 2, unit: 'unit', status: 'low-stock', value: 2200000 },
-  { code: 'INV-A-004', name: 'Kertas A4 80gsm', category: 'ATK', location: 'Gudang Pusat', qty: 4, unit: 'rim', status: 'low-stock', value: 55000 },
-  { code: 'INV-A-005', name: 'Proyektor Epson EB-X41', category: 'Elektronik', location: 'Ruang Meeting', qty: 0, unit: 'unit', status: 'out-of-stock', value: 5500000 },
-  { code: 'INV-A-006', name: 'Meja Kerja Standing Desk', category: 'Furniture', location: 'Lantai 3', qty: 12, unit: 'unit', status: 'available', value: 2800000 },
-];
+import api from '@/lib/api';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   available: { label: 'Tersedia', bg: 'bg-emerald-50', text: 'text-emerald-700' },
@@ -19,17 +11,15 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 function formatRupiah(amount: number) {
-  return `Rp ${amount.toLocaleString('id-ID')}`;
+  return `Rp ${(amount || 0).toLocaleString('id-ID')}`;
 }
-
-import api from '@/lib/api';
 
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Semua Kategori');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
-  const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<{ name: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
@@ -45,9 +35,23 @@ export default function InventoryPage() {
         api.get('/inventory'),
         api.get('/categories')
       ]);
-      setInventory(invRes.data);
-      const activeCats = catRes.data.filter((c: any) => c.status === 'active' && c.type === 'categories');
-      setAvailableCategories(activeCats.length > 0 ? activeCats : [{ name: 'Elektronik' }, { name: 'Furniture' }, { name: 'ATK' }]);
+
+      // Handle array response dari Axios/Laravel wrapper
+      const invData = Array.isArray(invRes.data?.data)
+        ? invRes.data.data
+        : Array.isArray(invRes.data)
+          ? invRes.data
+          : [];
+      setInventory(invData);
+
+      const catData = Array.isArray(catRes.data?.data)
+        ? catRes.data.data
+        : Array.isArray(catRes.data)
+          ? catRes.data
+          : [];
+
+      const activeCats = catData.filter((c: any) => c.status === 'active' && c.type === 'categories');
+      setAvailableCategories(activeCats);
     } catch (err) {
       console.error(err);
       setInfoModal({ show: true, title: 'Error', message: 'Gagal memuat data dari server.', type: 'warning' });
@@ -85,13 +89,12 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!editData) return;
     try {
-      // Auto-determine status based on qty
       let newStatus = 'available';
       if (editData.qty === 0) newStatus = 'out-of-stock';
       else if (editData.qty <= 5) newStatus = 'low-stock';
-      
+
       const payload = { ...editData, status: newStatus };
-      
+
       await api.put(`/inventory/${editData.code}`, payload);
       fetchData();
       setEditModal(false);
@@ -102,10 +105,14 @@ export default function InventoryPage() {
   };
 
   const filteredInventory = inventory.filter(item => {
-    const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.code.toLowerCase().includes(searchQuery.toLowerCase());
+    const nameMatch = item.name ? item.name.toLowerCase().includes(searchQuery.toLowerCase()) : false;
+    const codeMatch = item.code ? item.code.toLowerCase().includes(searchQuery.toLowerCase()) : false;
+    const matchSearch = nameMatch || codeMatch;
+
     const matchCategory = categoryFilter === 'Semua Kategori' || item.category === categoryFilter;
     const mappedStatus = STATUS_CONFIG[item.status]?.label || item.status;
     const matchStatus = statusFilter === 'Semua Status' || mappedStatus === statusFilter;
+
     return matchSearch && matchCategory && matchStatus;
   });
 
@@ -126,7 +133,7 @@ export default function InventoryPage() {
     });
   };
 
-  const totalValue = filteredInventory.reduce((sum, item) => sum + item.qty * item.value, 0);
+  const totalValue = filteredInventory.reduce((sum, item) => sum + ((item.qty || 0) * (item.value || 0)), 0);
   const lowStockCount = filteredInventory.filter((i) => i.status === 'low-stock').length;
   const outOfStockCount = filteredInventory.filter((i) => i.status === 'out-of-stock').length;
 
@@ -210,7 +217,6 @@ export default function InventoryPage() {
             {availableCategories.map((cat, idx) => (
               <option key={idx} value={cat.name}>{cat.name}</option>
             ))}
-            <option>Lainnya</option>
           </select>
         </div>
         <div className="w-44">
@@ -241,10 +247,16 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredInventory.length === 0 ? (
+              {loading ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-500">
-                    Tidak ada barang ditemukan.
+                    Memuat data dari database...
+                  </td>
+                </tr>
+              ) : filteredInventory.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    Tidak ada barang ditemukan di database.
                   </td>
                 </tr>
               ) : filteredInventory.map((item) => {
@@ -301,37 +313,37 @@ export default function InventoryPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kode</label>
-                  <input type="text" value={editData.code} disabled className="w-full bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-500 text-sm cursor-not-allowed" />
+                  <input type="text" value={editData.code || ''} disabled className="w-full bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-500 text-sm cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</label>
-                  <select value={editData.category} onChange={(e) => setEditData({...editData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm">
-                    <option>Elektronik</option>
-                    <option>Furniture</option>
-                    <option>ATK</option>
+                  <select value={editData.category || ''} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm">
+                    {availableCategories.map((cat, idx) => (
+                      <option key={idx} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Barang</label>
-                <input type="text" value={editData.name} onChange={(e) => setEditData({...editData, name: e.target.value})} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                <input type="text" value={editData.name || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lokasi</label>
-                <input type="text" value={editData.location} onChange={(e) => setEditData({...editData, location: e.target.value})} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                <input type="text" value={editData.location || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Stok</label>
-                  <input type="number" min="0" value={editData.qty} onChange={(e) => setEditData({...editData, qty: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                  <input type="number" min="0" value={editData.qty || 0} onChange={(e) => setEditData({ ...editData, qty: parseInt(e.target.value) || 0 })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Satuan</label>
-                  <input type="text" value={editData.unit} onChange={(e) => setEditData({...editData, unit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                  <input type="text" value={editData.unit || ''} onChange={(e) => setEditData({ ...editData, unit: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nilai/Unit (Rp)</label>
-                  <input type="number" min="0" value={editData.value} onChange={(e) => setEditData({...editData, value: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                  <input type="number" min="0" value={editData.value || 0} onChange={(e) => setEditData({ ...editData, value: parseInt(e.target.value) || 0 })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
                 </div>
               </div>
               <div className="pt-4 flex gap-3">
@@ -377,10 +389,9 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center space-y-4">
-              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
-                infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
-                infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
-              }`}>
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                  infoModal.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                }`}>
                 <span className="material-symbols-outlined text-3xl">
                   {infoModal.type === 'success' ? 'check_circle' : infoModal.type === 'warning' ? 'warning' : 'info'}
                 </span>
@@ -388,12 +399,11 @@ export default function InventoryPage() {
               <h3 className="text-xl font-bold text-slate-900">{infoModal.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{infoModal.message}</p>
               <div className="pt-2">
-                <button 
+                <button
                   onClick={() => setInfoModal({ ...infoModal, show: false })}
-                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${
-                    infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                    infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer ${infoModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                      infoModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                 >
                   Mengerti
                 </button>

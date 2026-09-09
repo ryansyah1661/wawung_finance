@@ -12,7 +12,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 
 function formatRupiah(amount: number | string) {
   const num = typeof amount === 'string' ? parseInt(amount.replace(/\D/g, '') || '0', 10) : amount;
-  return `Rp ${num.toLocaleString('id-ID')}`;
+  return `Rp ${(num || 0).toLocaleString('id-ID')}`;
 }
 
 export default function ReimbursementsPage() {
@@ -20,26 +20,60 @@ export default function ReimbursementsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
+
   const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch Data dari API Database Laravel
+  const fetchReimbursements = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await fetch('/api/reimbursements');
+      if (!res.ok) throw new Error('Gagal mengambil data dari server');
+
+      const result = await res.json();
+      // Menangani format response { success: true, data: [...] }
+      const listData = Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []);
+      setRequests(listData);
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan saat memuat data');
+      setRequests([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('mock_reimbursements') || '[]');
-    setRequests(data);
+    fetchReimbursements();
   }, []);
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  // Handle Hapus Data ke API
+  const handleDelete = async (e: React.MouseEvent, id: string | number) => {
     e.stopPropagation();
-    const updated = requests.filter(r => r.id !== id);
-    setRequests(updated);
-    localStorage.setItem('mock_reimbursements', JSON.stringify(updated));
+    if (!confirm('Apakah Anda yakin ingin menghapus data reimbursement ini?')) return;
+
+    try {
+      const res = await fetch(`/api/reimbursements/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Gagal menghapus data');
+
+      // Update state setelah berhasil dihapus di DB
+      setRequests(prev => prev.filter(r => r.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus data');
+    }
   };
 
   const handleExport = () => {
     import('xlsx').then(XLSX => {
       const worksheet = XLSX.utils.json_to_sheet(requests.map(r => ({
-        ID: r.id,
+        ID: r.request_id || `#${r.id}`,
         Date: r.date || '',
-        Employee: r.employee || r.requester || '',
+        Employee: r.user_name || r.employee || r.requester || '',
         Department: r.department || '',
         Description: r.description || '',
         Amount: r.amount || 0,
@@ -51,19 +85,26 @@ export default function ReimbursementsPage() {
     });
   };
 
-  const filteredRequests = requests.filter(r => {
-    const matchesSearch = ((r.description?.toLowerCase().includes(searchQuery.toLowerCase())) || 
-                           (r.employee?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                           (r.requester?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                           (r.id?.toLowerCase().includes(searchQuery.toLowerCase())));
-    const matchesStatus = statusFilter === 'All Status' || r.status?.toLowerCase() === statusFilter.toLowerCase();
-    const matchesDept = departmentFilter === 'All Departments' || r.department?.toLowerCase() === departmentFilter.toLowerCase();
+  // Filter Data dengan proteksi Array & pemetaan field DB Laravel
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
+  const filteredRequests = safeRequests.filter(r => {
+    const searchLow = searchQuery.toLowerCase();
+    const desc = (r.description || '').toLowerCase();
+    const userName = (r.user_name || r.employee || r.requester || '').toLowerCase();
+    const reqId = (r.request_id || r.id || '').toString().toLowerCase();
+
+    const matchesSearch = desc.includes(searchLow) || userName.includes(searchLow) || reqId.includes(searchLow);
+    const matchesStatus = statusFilter === 'All Status' || (r.status || 'Pending').toLowerCase() === statusFilter.toLowerCase();
+    const matchesDept = departmentFilter === 'All Departments' || (r.department || '').toLowerCase() === departmentFilter.toLowerCase();
+
     return matchesSearch && matchesStatus && matchesDept;
   });
 
-  const pendingCount = requests.filter(r => !r.status || r.status.toLowerCase() === 'pending').length;
-  const rejectedCount = requests.filter(r => r.status?.toLowerCase() === 'rejected').length;
-  const approvedAmount = requests.filter(r => r.status?.toLowerCase() === 'approved')
+  const pendingCount = safeRequests.filter(r => !r.status || r.status.toLowerCase() === 'pending').length;
+  const rejectedCount = safeRequests.filter(r => r.status?.toLowerCase() === 'rejected').length;
+  const approvedAmount = safeRequests
+    .filter(r => r.status?.toLowerCase() === 'approved')
     .reduce((sum, r) => sum + parseInt(String(r.amount || 0).replace(/\D/g, '') || '0', 10), 0);
 
   return (
@@ -129,13 +170,13 @@ export default function ReimbursementsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Nama karyawan, ID..."
+            placeholder="Nama karyawan, ID, deskripsi..."
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
           />
         </div>
         <div className="w-44">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select 
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -148,7 +189,7 @@ export default function ReimbursementsPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
-          <select 
+          <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
@@ -159,6 +200,7 @@ export default function ReimbursementsPage() {
             <option>Operations</option>
             <option>Finance</option>
             <option>HR</option>
+            <option>IT Project</option>
           </select>
         </div>
       </div>
@@ -180,53 +222,73 @@ export default function ReimbursementsPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredRequests.map((item) => {
-                const status = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending;
-                const empName = item.employee || item.requester || 'User';
-                return (
-                  <tr 
-                    key={item.id} 
-                    onClick={() => router.push(`/reimbursements/${item.id}`)}
-                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                  >
-                    <td className="p-3 font-mono text-xs text-slate-500">{item.id}</td>
-                    <td className="p-3 text-slate-500">{item.date || '-'}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
-                          {empName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <span className="font-medium text-slate-900">{empName}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-500">{item.department || '-'}</td>
-                    <td className="p-3 text-slate-700">{item.description || '-'}</td>
-                    <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(item.amount)}</td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center flex justify-end gap-2">
-                      <button 
-                        onClick={(e) => handleDelete(e, item.id)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
-                      </button>
-                      <button className="text-slate-400 group-hover:text-primary transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredRequests.length === 0 && (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      Memuat data reimbursement...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-rose-500">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredRequests.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center text-slate-500">
                     Tidak ada data reimbursement.
                   </td>
                 </tr>
+              ) : (
+                filteredRequests.map((item) => {
+                  const statusKey = (item.status || 'pending').toLowerCase();
+                  const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
+                  const displayId = item.request_id || `#${item.id}`;
+                  const empName = item.user_name || item.employee || item.requester || 'User';
+
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => router.push(`/reimbursements/${item.id}`)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                    >
+                      <td className="p-3 font-mono text-xs font-medium text-slate-900">{displayId}</td>
+                      <td className="p-3 text-slate-500">{item.date || '-'}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
+                            {empName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <span className="font-medium text-slate-900">{empName}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-500">{item.department || '-'}</td>
+                      <td className="p-3 text-slate-700 max-w-70 truncate">{item.description || '-'}</td>
+                      <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(item.amount)}</td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center flex justify-end gap-2">
+                        <button
+                          onClick={(e) => handleDelete(e, item.id)}
+                          className="text-slate-400 hover:text-rose-500 transition-colors"
+                          title="Hapus"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                        </button>
+                        <button className="text-slate-400 group-hover:text-primary transition-colors cursor-pointer">
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

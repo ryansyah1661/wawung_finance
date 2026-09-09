@@ -1,51 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-const INVOICES = [
-  {
-    id: 'INV-2023-104',
-    client: 'PT Alpha',
-    issueDate: '2023-10-10',
-    dueDate: '2023-10-27',
-    amount: 8500000,
-    status: 'overdue',
-  },
-  {
-    id: 'INV-2023-105',
-    client: 'CV Beta',
-    issueDate: '2023-10-12',
-    dueDate: '2023-10-28',
-    amount: 12100000,
-    status: 'due-soon',
-  },
-  {
-    id: 'INV-2023-103',
-    client: 'PT Maju Bersama',
-    issueDate: '2023-10-05',
-    dueDate: '2023-10-20',
-    amount: 25000000,
-    status: 'paid',
-  },
-  {
-    id: 'INV-2023-102',
-    client: 'CV Sukses Mandiri',
-    issueDate: '2023-10-01',
-    dueDate: '2023-10-15',
-    amount: 4750000,
-    status: 'paid',
-  },
-  {
-    id: 'INV-2023-101',
-    client: 'PT Delta Prima',
-    issueDate: '2023-09-28',
-    dueDate: '2023-10-12',
-    amount: 6200000,
-    status: 'paid',
-  },
-];
+interface InvoiceItem {
+  id?: string;
+  description: string;
+  qty: number;
+  price: number;
+}
+
+interface Invoice {
+  id: string;
+  client: string;
+  issueDate: string;
+  dueDate: string;
+  amount: number;
+  status: string;
+  notes?: string;
+  items?: InvoiceItem[];
+}
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   overdue: { label: 'Overdue', bg: 'bg-rose-50', text: 'text-rose-700' },
@@ -55,44 +30,84 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 function formatRupiah(amount: number) {
-  return `Rp ${amount.toLocaleString('id-ID')}`;
+  return `Rp ${Number(amount || 0).toLocaleString('id-ID')}`;
 }
 
 export default function InvoicesPage() {
   const router = useRouter();
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [dateFilter, setDateFilter] = useState('');
-  
-  // Custom Modals
+
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, id: '' });
 
-  useEffect(() => {
-    const existingStr = localStorage.getItem('mock_invoices');
-    if (existingStr) {
-      setInvoices(JSON.parse(existingStr));
-    } else {
-      localStorage.setItem('mock_invoices', JSON.stringify(INVOICES));
-      setInvoices(INVOICES);
+  // Fetch Invoices dari Backend API
+  const fetchInvoices = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/invoices');
+      if (!res.ok) throw new Error('Gagal mengambil data invoice');
+      const data = await res.json();
+
+      // Memastikan tipe data yang masuk ke state selalu berupa Array
+      if (Array.isArray(data)) {
+        setInvoices(data);
+      } else if (data && Array.isArray(data.data)) {
+        setInvoices(data.data);
+      } else {
+        setInvoices([]);
+      }
+    } catch (err: any) {
+      setInvoices([]);
+      setInfoModal({
+        show: true,
+        title: 'Error',
+        message: err.message || 'Terjadi kesalahan saat memuat data.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const handleDelete = (id: string) => {
     setConfirmModal({ show: true, id });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!confirmModal.id) return;
-    const updated = invoices.filter(i => i.id !== confirmModal.id);
-    setInvoices(updated);
-    localStorage.setItem('mock_invoices', JSON.stringify(updated));
-    setConfirmModal({ show: false, id: '' });
+    try {
+      const res = await fetch(`/api/invoices/${confirmModal.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Gagal menghapus invoice');
+
+      setInvoices((prev) => (Array.isArray(prev) ? prev.filter((i) => i.id !== confirmModal.id) : []));
+      setConfirmModal({ show: false, id: '' });
+    } catch (err: any) {
+      setConfirmModal({ show: false, id: '' });
+      setInfoModal({
+        show: true,
+        title: 'Gagal Hapus',
+        message: err.message || 'Gagal menghapus data dari server.',
+      });
+    }
   };
 
-  const filteredInvoices = invoices.filter(inv => {
-    const matchSearch = inv.client.toLowerCase().includes(searchQuery.toLowerCase()) || inv.id.toLowerCase().includes(searchQuery.toLowerCase());
+  // Pengecekan aman untuk variabel invoices
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+
+  const filteredInvoices = safeInvoices.filter((inv) => {
+    const matchSearch =
+      inv.client?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.id?.toString().toLowerCase().includes(searchQuery.toLowerCase());
     const mappedStatus = STATUS_CONFIG[inv.status]?.label || 'Draft';
     const matchStatus = statusFilter === 'All Status' || mappedStatus === statusFilter;
     const matchDate = dateFilter === '' || inv.dueDate === dateFilter;
@@ -100,32 +115,33 @@ export default function InvoicesPage() {
   });
 
   const handleExport = () => {
-    import('xlsx').then(XLSX => {
-      const worksheet = XLSX.utils.json_to_sheet(filteredInvoices.map((e: any) => ({
-        'No. Invoice': e.id,
-        Client: e.client,
-        'Tanggal Terbit': e.issueDate,
-        'Jatuh Tempo': e.dueDate,
-        Jumlah: e.amount,
-        Status: STATUS_CONFIG[e.status]?.label || e.status
-      })));
+    import('xlsx').then((XLSX) => {
+      const worksheet = XLSX.utils.json_to_sheet(
+        filteredInvoices.map((e: Invoice) => ({
+          'No. Invoice': e.id,
+          Client: e.client,
+          'Tanggal Terbit': e.issueDate,
+          'Jatuh Tempo': e.dueDate,
+          Jumlah: e.amount,
+          Status: STATUS_CONFIG[e.status]?.label || e.status,
+        }))
+      );
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
-      XLSX.writeFile(workbook, "invoices.xlsx");
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
+      XLSX.writeFile(workbook, 'invoices.xlsx');
     });
   };
 
-  // Calculate stats
-  const totalOutstanding = invoices
-    .filter(i => i.status === 'overdue' || i.status === 'due-soon')
-    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
-  
-  const totalPaid = invoices
-    .filter(i => i.status === 'paid')
+  const totalOutstanding = safeInvoices
+    .filter((i) => i.status === 'overdue' || i.status === 'due-soon')
     .reduce((sum, i) => sum + Number(i.amount || 0), 0);
 
-  const countOverdue = invoices.filter(i => i.status === 'overdue').length;
-  const countDueSoon = invoices.filter(i => i.status === 'due-soon').length;
+  const totalPaid = safeInvoices
+    .filter((i) => i.status === 'paid')
+    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
+  const countOverdue = safeInvoices.filter((i) => i.status === 'overdue').length;
+  const countDueSoon = safeInvoices.filter((i) => i.status === 'due-soon').length;
 
   const formatShortRupiah = (amount: number) => {
     if (amount >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
@@ -135,7 +151,6 @@ export default function InvoicesPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
-
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -143,13 +158,20 @@ export default function InvoicesPage() {
           <p className="text-sm text-slate-500 mt-1">Kelola tagihan dan pembayaran klien</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleExport} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+          <button
+            onClick={handleExport}
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+              download
+            </span>
             Export
           </button>
           <Link href="/invoices/new-invoice">
             <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                add
+              </span>
               Create Invoice
             </button>
           </Link>
@@ -160,8 +182,12 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Outstanding</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">{formatShortRupiah(totalOutstanding)}</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Total Outstanding
+            </p>
+            <p className="text-lg font-bold text-slate-900 font-mono">
+              {formatShortRupiah(totalOutstanding)}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <span className="material-symbols-outlined text-[20px]">receipt_long</span>
@@ -169,8 +195,12 @@ export default function InvoicesPage() {
         </div>
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Overdue</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">{countOverdue} <span className="text-xs font-normal text-slate-500">invoice</span></p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Overdue
+            </p>
+            <p className="text-lg font-bold text-slate-900 font-mono">
+              {countOverdue} <span className="text-xs font-normal text-slate-500">invoice</span>
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <span className="material-symbols-outlined text-[20px]">event_busy</span>
@@ -178,8 +208,12 @@ export default function InvoicesPage() {
         </div>
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Due Soon</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">{countDueSoon} <span className="text-xs font-normal text-slate-500">invoice</span></p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Due Soon
+            </p>
+            <p className="text-lg font-bold text-slate-900 font-mono">
+              {countDueSoon} <span className="text-xs font-normal text-slate-500">invoice</span>
+            </p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <span className="material-symbols-outlined text-[20px]">schedule</span>
@@ -187,7 +221,9 @@ export default function InvoicesPage() {
         </div>
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Paid (Month)</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Paid (Month)
+            </p>
             <p className="text-lg font-bold text-slate-900 font-mono">{formatShortRupiah(totalPaid)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -199,7 +235,9 @@ export default function InvoicesPage() {
       {/* Filter Bar */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-50">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            Search
+          </label>
           <input
             type="text"
             value={searchQuery}
@@ -209,8 +247,14 @@ export default function InvoicesPage() {
           />
         </div>
         <div className="w-44">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+          >
             <option>All Status</option>
             <option>Draft</option>
             <option>Due Soon</option>
@@ -219,7 +263,9 @@ export default function InvoicesPage() {
           </select>
         </div>
         <div className="w-56">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Due Date Range</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            Due Date Range
+          </label>
           <input
             type="date"
             value={dateFilter}
@@ -245,71 +291,97 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredInvoices.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                    Memuat data invoice...
+                  </td>
+                </tr>
+              ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-500">
                     Tidak ada invoice ditemukan.
                   </td>
                 </tr>
-              ) : filteredInvoices.map((invoice) => {
-                const status = STATUS_CONFIG[invoice.status] || STATUS_CONFIG['draft'];
-                return (
-                  <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="p-3 font-mono text-xs font-medium text-slate-900">{invoice.id}</td>
-                    <td className="p-3 font-medium text-slate-900">{invoice.client}</td>
-                    <td className="p-3 text-slate-500">{invoice.issueDate}</td>
-                    <td className="p-3 text-slate-500">{invoice.dueDate}</td>
-                    <td className="p-3 text-right font-mono font-medium text-slate-900">{formatRupiah(invoice.amount)}</td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <button 
-                          onClick={() => router.push(`/invoices/${invoice.id}`)}
-                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="View"
+              ) : (
+                filteredInvoices.map((invoice) => {
+                  const status = STATUS_CONFIG[invoice.status] || STATUS_CONFIG['draft'];
+                  return (
+                    <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="p-3 font-mono text-xs font-medium text-slate-900">
+                        {invoice.id}
+                      </td>
+                      <td className="p-3 font-medium text-slate-900">{invoice.client}</td>
+                      <td className="p-3 text-slate-500">{invoice.issueDate}</td>
+                      <td className="p-3 text-slate-500">{invoice.dueDate}</td>
+                      <td className="p-3 text-right font-mono font-medium text-slate-900">
+                        {formatRupiah(invoice.amount)}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const htmlContent = `
-                              <html>
-                                <head><title>Invoice ${invoice.id}</title></head>
-                                <body style="font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
-                                  <h1>INVOICE ${invoice.id}</h1>
-                                  <hr/>
-                                  <p><strong>Client:</strong> ${invoice.client}</p>
-                                  <p><strong>Tanggal Terbit:</strong> ${invoice.issueDate}</p>
-                                  <p><strong>Jatuh Tempo:</strong> ${invoice.dueDate}</p>
-                                  <p><strong>Total:</strong> Rp ${invoice.amount.toLocaleString('id-ID')}</p>
-                                  <br/>
-                                  <p><em>Dokumen ini di-generate otomatis oleh Wawung Finance.</em></p>
-                                </body>
-                              </html>
-                            `;
-                            const blob = new Blob([htmlContent], { type: 'text/html' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `${invoice.id}.html`;
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
-                        </button>
-                        <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Hapus">
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => router.push(`/invoices/${invoice.id}`)}
+                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="View"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                              visibility
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              const htmlContent = `
+                                <html>
+                                  <head><title>Invoice ${invoice.id}</title></head>
+                                  <body style="font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
+                                    <h1>INVOICE ${invoice.id}</h1>
+                                    <hr/>
+                                    <p><strong>Client:</strong> ${invoice.client}</p>
+                                    <p><strong>Tanggal Terbit:</strong> ${invoice.issueDate}</p>
+                                    <p><strong>Jatuh Tempo:</strong> ${invoice.dueDate}</p>
+                                    <p><strong>Total:</strong> Rp ${Number(invoice.amount || 0).toLocaleString('id-ID')}</p>
+                                    <br/>
+                                    <p><em>Dokumen ini di-generate otomatis oleh Wawung Finance.</em></p>
+                                  </body>
+                                </html>
+                              `;
+                              const blob = new Blob([htmlContent], { type: 'text/html' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `${invoice.id}.html`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Download"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                              download
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(invoice.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Hapus"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                              delete
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -320,12 +392,21 @@ export default function InvoicesPage() {
             Menampilkan {filteredInvoices.length} invoice
           </span>
           <div className="flex gap-1">
-            <button className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer" disabled>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
+            <button
+              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+              disabled
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                chevron_left
+              </span>
             </button>
-            <button className="px-3 py-1 rounded bg-primary/10 text-primary font-medium text-sm cursor-pointer">1</button>
+            <button className="px-3 py-1 rounded bg-primary/10 text-primary font-medium text-sm cursor-pointer">
+              1
+            </button>
             <button className="p-1 rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                chevron_right
+              </span>
             </button>
           </div>
         </div>
@@ -341,7 +422,7 @@ export default function InvoicesPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">{infoModal.title}</h3>
               <p className="text-slate-500 mb-6">{infoModal.message}</p>
-              <button 
+              <button
                 onClick={() => setInfoModal({ show: false, message: '', title: '' })}
                 className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
               >
@@ -365,13 +446,13 @@ export default function InvoicesPage() {
                 Apakah Anda yakin ingin menghapus invoice <strong>{confirmModal.id}</strong>? Data yang sudah dihapus tidak bisa dikembalikan.
               </p>
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setConfirmModal({ show: false, id: '' })}
                   className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   onClick={confirmDelete}
                   className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
                 >
@@ -382,7 +463,6 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

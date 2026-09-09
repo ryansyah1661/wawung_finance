@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const REPORT_TYPES = [
   {
@@ -37,7 +37,7 @@ const REPORT_TYPES = [
   },
 ];
 
-const RECENT_REPORTS = [
+const DEFAULT_REPORTS = [
   { name: 'Laporan Laba Rugi - Oktober 2023', type: 'PDF', date: '2023-10-27', size: '284 KB' },
   { name: 'Arus Kas - Q3 2023', type: 'XLSX', date: '2023-10-15', size: '512 KB' },
   { name: 'Rincian Pengeluaran - September 2023', type: 'PDF', date: '2023-10-02', size: '198 KB' },
@@ -46,80 +46,117 @@ const RECENT_REPORTS = [
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('this-month');
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, profit: 0, margin: 0 });
   const [recentReports, setRecentReports] = useState<any[]>([]);
 
+  const fetchReportData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Ambil transaksi dari API backend
+      const res = await fetch('/api/transactions');
+      if (!res.ok) throw new Error('Gagal mengambil data');
+      const responseData = await res.json();
+
+      // Memastikan format data berupa Array
+      const saved = Array.isArray(responseData)
+        ? responseData
+        : Array.isArray(responseData.data)
+          ? responseData.data
+          : [];
+
+      // Hitung ringkasan
+      let totalIncome = 0;
+      let totalExpense = 0;
+
+      saved.forEach((t: any) => {
+        const type = (t.type || '').toLowerCase();
+        const amount = Number(t.amount || 0);
+        if (type === 'income' || type === 'pemasukan' || type === 'in') {
+          totalIncome += amount;
+        } else if (type === 'expense' || type === 'pengeluaran' || type === 'out') {
+          totalExpense += amount;
+        }
+      });
+
+      const profit = totalIncome - totalExpense;
+      const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
+
+      setSummary({
+        income: totalIncome,
+        expense: totalExpense,
+        profit: profit,
+        margin: margin,
+      });
+
+      // Hitung data grafik 6 bulan terakhir
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      const monthlyData: Record<string, { income: number; expense: number }> = {};
+
+      saved.forEach((t: any) => {
+        const dateStr = t.date || t.created_at;
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return;
+
+        const m = months[d.getMonth()];
+        if (!monthlyData[m]) monthlyData[m] = { income: 0, expense: 0 };
+
+        const type = (t.type || '').toLowerCase();
+        const amount = Number(t.amount || 0);
+        if (type === 'income' || type === 'pemasukan' || type === 'in') {
+          monthlyData[m].income += amount;
+        } else if (type === 'expense' || type === 'pengeluaran' || type === 'out') {
+          monthlyData[m].expense += amount;
+        }
+      });
+
+      const currentMonthIdx = new Date().getMonth();
+      const chartArr = [];
+      let maxVal = 0;
+
+      for (let i = 5; i >= 0; i--) {
+        let mIdx = currentMonthIdx - i;
+        if (mIdx < 0) mIdx += 12;
+        const mName = months[mIdx];
+        const data = monthlyData[mName] || { income: 0, expense: 0 };
+        chartArr.push({ month: mName, income: data.income, expense: data.expense });
+        if (data.income > maxVal) maxVal = data.income;
+        if (data.expense > maxVal) maxVal = data.expense;
+      }
+
+      const normalizedChart = chartArr.map((d) => ({
+        month: d.month,
+        rawIncome: d.income,
+        rawExpense: d.expense,
+        incomePct: maxVal > 0 ? (d.income / maxVal) * 100 : 0,
+        expensePct: maxVal > 0 ? (d.expense / maxVal) * 100 : 0,
+      }));
+
+      setChartData(normalizedChart);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('mock_transactions') || '[]');
-    setTransactions(saved);
+    fetchReportData();
 
     const savedReports = localStorage.getItem('mock_reports');
     if (savedReports) {
-      setRecentReports(JSON.parse(savedReports));
+      try {
+        setRecentReports(JSON.parse(savedReports));
+      } catch {
+        setRecentReports(DEFAULT_REPORTS);
+      }
     } else {
-      setRecentReports(RECENT_REPORTS);
-      localStorage.setItem('mock_reports', JSON.stringify(RECENT_REPORTS));
+      setRecentReports(DEFAULT_REPORTS);
+      localStorage.setItem('mock_reports', JSON.stringify(DEFAULT_REPORTS));
     }
-
-    // Compute summary
-    let totalIncome = 0;
-    let totalExpense = 0;
-    saved.forEach((t: any) => {
-      if (t.type === 'income') totalIncome += Number(t.amount || 0);
-      if (t.type === 'expense') totalExpense += Number(t.amount || 0);
-    });
-    
-    const profit = totalIncome - totalExpense;
-    const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
-    
-    setSummary({
-      income: totalIncome,
-      expense: totalExpense,
-      profit: profit,
-      margin: margin
-    });
-
-    // Compute chart data (last 6 months dynamically based on current date, or simply group existing data)
-    // For simplicity, we'll group by month string (e.g., 'Jan', 'Feb')
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-    const monthlyData: Record<string, { income: number, expense: number }> = {};
-    
-    saved.forEach((t: any) => {
-      if (!t.date) return;
-      const d = new Date(t.date);
-      const m = months[d.getMonth()];
-      if (!monthlyData[m]) monthlyData[m] = { income: 0, expense: 0 };
-      if (t.type === 'income') monthlyData[m].income += Number(t.amount || 0);
-      if (t.type === 'expense') monthlyData[m].expense += Number(t.amount || 0);
-    });
-
-    // Create array for chart, take the most recent 6 months that have data or just a fixed set of 6 recent months
-    const currentMonthIdx = new Date().getMonth();
-    const chartArr = [];
-    let maxVal = 0;
-    for (let i = 5; i >= 0; i--) {
-      let mIdx = currentMonthIdx - i;
-      if (mIdx < 0) mIdx += 12;
-      const mName = months[mIdx];
-      const data = monthlyData[mName] || { income: 0, expense: 0 };
-      chartArr.push({ month: mName, income: data.income, expense: data.expense });
-      if (data.income > maxVal) maxVal = data.income;
-      if (data.expense > maxVal) maxVal = data.expense;
-    }
-
-    // Normalize to percentages (0-100) for the CSS height
-    const normalizedChart = chartArr.map(d => ({
-      month: d.month,
-      rawIncome: d.income,
-      rawExpense: d.expense,
-      incomePct: maxVal > 0 ? (d.income / maxVal) * 100 : 0,
-      expensePct: maxVal > 0 ? (d.expense / maxVal) * 100 : 0
-    }));
-
-    setChartData(normalizedChart);
-  }, []);
+  }, [fetchReportData]);
 
   const formatShortRupiah = (amount: number) => {
     if (Math.abs(amount) >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
@@ -128,7 +165,6 @@ export default function ReportsPage() {
   };
 
   const downloadReport = (title: string, date: string) => {
-    // Generate simple CSV content
     const csvRows = [];
     csvRows.push([`"${title}"`]);
     csvRows.push([`"Tanggal Dibuat:", "${date}"`]);
@@ -139,7 +175,7 @@ export default function ReportsPage() {
     csvRows.push([`"Total Pengeluaran"`, `"${summary.expense}"`]);
     csvRows.push([`"Laba Bersih"`, `"${summary.profit}"`]);
 
-    const csvContent = csvRows.map(e => e.join(",")).join("\n");
+    const csvContent = csvRows.map((e) => e.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -155,19 +191,18 @@ export default function ReportsPage() {
       name: `${title} - Generated`,
       type: 'CSV',
       date: today,
-      size: `${Math.floor(Math.random() * 50) + 10} KB`
+      size: `${Math.floor(Math.random() * 50) + 10} KB`,
     };
-    
+
     const updated = [newReport, ...recentReports];
     setRecentReports(updated);
     localStorage.setItem('mock_reports', JSON.stringify(updated));
-    
+
     downloadReport(newReport.name, newReport.date);
   };
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
-
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -203,7 +238,7 @@ export default function ReportsPage() {
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">{report.description}</p>
             </div>
-            <button 
+            <button
               onClick={() => handleGenerate(report.title)}
               className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-primary self-start cursor-pointer hover:underline"
             >
@@ -216,7 +251,6 @@ export default function ReportsPage() {
 
       {/* Chart Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Revenue vs Expense Chart */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
@@ -225,27 +259,32 @@ export default function ReportsPage() {
           </div>
 
           <div className="flex-1 relative min-h-55 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] bg-size[20px_20px] rounded-lg p-4 flex items-end gap-6">
-            {chartData.map((d) => (
-              <div key={d.month} className="flex-1 flex flex-col items-center gap-2 group relative">
-                
-                {/* Tooltip on hover */}
-                <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap z-10 shadow-lg pointer-events-none">
-                  In: {formatShortRupiah(d.rawIncome)} | Out: {formatShortRupiah(d.rawExpense)}
-                </div>
-
-                <div className="w-full flex items-end justify-center gap-1 h-40">
-                  <div
-                    className="w-4 bg-emerald-500 rounded-t transition-all duration-500"
-                    style={{ height: `${d.incomePct}%`, minHeight: d.incomePct > 0 ? '4px' : '0' }}
-                  ></div>
-                  <div
-                    className="w-4 bg-rose-400 rounded-t transition-all duration-500"
-                    style={{ height: `${d.expensePct}%`, minHeight: d.expensePct > 0 ? '4px' : '0' }}
-                  ></div>
-                </div>
-                <span className="text-xs text-slate-500 font-medium">{d.month}</span>
+            {isLoading ? (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">
+                Memuat data grafik...
               </div>
-            ))}
+            ) : (
+              chartData.map((d) => (
+                <div key={d.month} className="flex-1 flex flex-col items-center gap-2 group relative">
+                  {/* Tooltip on hover */}
+                  <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap z-10 shadow-lg pointer-events-none">
+                    In: {formatShortRupiah(d.rawIncome)} | Out: {formatShortRupiah(d.rawExpense)}
+                  </div>
+
+                  <div className="w-full flex items-end justify-center gap-1 h-40">
+                    <div
+                      className="w-4 bg-emerald-500 rounded-t transition-all duration-500"
+                      style={{ height: `${d.incomePct}%`, minHeight: d.incomePct > 0 ? '4px' : '0' }}
+                    ></div>
+                    <div
+                      className="w-4 bg-rose-400 rounded-t transition-all duration-500"
+                      style={{ height: `${d.expensePct}%`, minHeight: d.expensePct > 0 ? '4px' : '0' }}
+                    ></div>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">{d.month}</span>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="flex items-center gap-4 mt-4 justify-center">
@@ -264,21 +303,31 @@ export default function ReportsPage() {
           <div className="space-y-5">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Total Pendapatan</span>
-              <span className="font-mono font-semibold text-emerald-600">{formatShortRupiah(summary.income)}</span>
+              <span className="font-mono font-semibold text-emerald-600">
+                {formatShortRupiah(summary.income)}
+              </span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Total Pengeluaran</span>
-              <span className="font-mono font-semibold text-rose-600">{formatShortRupiah(summary.expense)}</span>
+              <span className="font-mono font-semibold text-rose-600">
+                {formatShortRupiah(summary.expense)}
+              </span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <span className="text-sm text-slate-500">Laba Bersih</span>
-              <span className={`font-mono font-semibold ${summary.profit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+              <span
+                className={`font-mono font-semibold ${summary.profit >= 0 ? 'text-slate-900' : 'text-rose-600'
+                  }`}
+              >
                 {formatShortRupiah(summary.profit)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-500">Margin</span>
-              <span className={`font-mono font-semibold ${summary.margin >= 0 ? 'text-primary' : 'text-rose-600'}`}>
+              <span
+                className={`font-mono font-semibold ${summary.margin >= 0 ? 'text-primary' : 'text-rose-600'
+                  }`}
+              >
                 {summary.margin.toFixed(1)}%
               </span>
             </div>
@@ -322,11 +371,14 @@ export default function ReportsPage() {
                   <td className="p-3 text-slate-500">{report.size}</td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={() => downloadReport(report.name, report.date)}
-                        className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Download"
+                        className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        title="Download"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                          download
+                        </span>
                       </button>
                     </div>
                   </td>
@@ -336,7 +388,6 @@ export default function ReportsPage() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }
