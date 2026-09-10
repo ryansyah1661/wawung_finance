@@ -6,12 +6,31 @@ import api from '@/lib/api';
 export default function ProfileTab() {
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
-        name: 'Ryan Syah',
-        email: 'ryan@kawungpitu.org',
-        phone: '082112102262',
-        position: 'Specialist IT',
+        name: '',
+        email: '',
+        phone: '',
+        position: '',
     });
     const [infoModal, setInfoModal] = useState({ show: false, title: '', message: '', type: 'success' as 'success' | 'warning' });
+
+    React.useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await api.get('/users/1');
+                if (res.data) {
+                    setFormData({
+                        name: res.data.name || '',
+                        email: res.data.email || '',
+                        phone: res.data.phone || '',
+                        position: res.data.position || '',
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to fetch user', e);
+            }
+        };
+        fetchUser();
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -35,6 +54,7 @@ export default function ProfileTab() {
             });
 
             setInfoModal({ show: true, title: 'Berhasil', message: 'Profil berhasil diperbarui!', type: 'success' });
+            window.dispatchEvent(new Event('userProfileUpdated'));
         } catch (error: any) {
             const msg = error?.response?.data?.message || 'Gagal terhubung ke backend Laravel.';
             setInfoModal({ show: true, title: 'Error', message: msg, type: 'warning' });
@@ -51,14 +71,8 @@ export default function ProfileTab() {
                 {/* Avatar Section */}
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-700 font-bold text-xl">
-                        {formData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        {formData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'RS'}
                     </div>
-                    <button
-                        type="button"
-                        className="text-sm font-semibold text-rose-800 hover:text-rose-900 cursor-pointer"
-                    >
-                        Ganti Foto
-                    </button>
                 </div>
 
                 {/* Form Inputs */}
@@ -132,7 +146,7 @@ export default function ProfileTab() {
 
             {/* Info Modal */}
             {infoModal.show && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
                         <div className="p-6 text-center space-y-4">
                             <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${

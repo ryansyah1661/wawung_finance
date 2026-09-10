@@ -1,12 +1,35 @@
 "use client";
 
 import React, { useState } from 'react';
+import api from '@/lib/api';
 
 export default function TopNav() {
-  const [imgError, setImgError] = useState(false);
+  const [userData, setUserData] = useState({ name: 'Ahmad Wijaya', role: 'Super Admin' });
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/users/1');
+        if (res.data) {
+          setUserData({
+            name: res.data.name || 'Ahmad Wijaya',
+            role: res.data.position || res.data.role || 'Super Admin',
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch user', e);
+      }
+    };
+    
+    fetchUser();
+    
+    const handleUpdate = () => fetchUser();
+    window.addEventListener('userProfileUpdated', handleUpdate);
+    return () => window.removeEventListener('userProfileUpdated', handleUpdate);
+  }, []);
 
   // Inisial nama pengguna (misal: AW untuk Ahmad Wijaya)
-  const userName = "Ahmad Wijaya";
+  const userName = userData.name;
   const userInitials = userName
     .split(' ')
     .map((n) => n[0])
@@ -40,22 +63,13 @@ export default function TopNav() {
 
         {/* User Profile Avatar */}
         <div className="flex items-center gap-3">
-          {!imgError ? (
-            <img
-              alt={userName}
-              className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"
-              src="/avatar.png"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shadow-sm">
-              {userInitials}
-            </div>
-          )}
+          <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shadow-sm shrink-0">
+            {userInitials || 'RS'}
+          </div>
 
           <div className="hidden lg:flex flex-col text-left">
             <span className="text-xs font-semibold text-slate-800">{userName}</span>
-            <span className="text-[10px] text-slate-500 font-medium">Super Admin</span>
+            <span className="text-[10px] text-slate-500 font-medium">{userData.role}</span>
           </div>
         </div>
       </div>
