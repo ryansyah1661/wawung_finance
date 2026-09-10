@@ -41,15 +41,42 @@ export default function SuperadminDashboard() {
           fetch('http://localhost:8000/api/invoices')
         ]);
 
-        const rawTrx = await resTrx.json();
-        const rawFR = await resFR.json();
-        const rawRB = await resRB.json();
-        const rawInv = await resInv.json();
+        const rawTrx = resTrx.ok ? await resTrx.json() : [];
+        const rawFR = resFR.ok ? await resFR.json() : [];
+        const rawRB = resRB.ok ? await resRB.json() : [];
+        const rawInv = resInv.ok ? await resInv.json() : [];
 
-        const transactions = rawTrx.data || rawTrx || [];
-        const fundRequests = rawFR.data || rawFR || [];
-        const reimbursements = rawRB.data || rawRB || [];
-        const invoices = rawInv.data || rawInv || [];
+        const transactions = Array.isArray(rawTrx)
+          ? rawTrx
+          : Array.isArray(rawTrx?.data)
+            ? rawTrx.data
+            : Array.isArray(rawTrx?.data?.data)
+              ? rawTrx.data.data
+              : [];
+
+        const fundRequests = Array.isArray(rawFR)
+          ? rawFR
+          : Array.isArray(rawFR?.data)
+            ? rawFR.data
+            : Array.isArray(rawFR?.data?.data)
+              ? rawFR.data.data
+              : [];
+
+        const reimbursements = Array.isArray(rawRB)
+          ? rawRB
+          : Array.isArray(rawRB?.data)
+            ? rawRB.data
+            : Array.isArray(rawRB?.data?.data)
+              ? rawRB.data.data
+              : [];
+
+        const invoices = Array.isArray(rawInv)
+          ? rawInv
+          : Array.isArray(rawInv?.data)
+            ? rawInv.data
+            : Array.isArray(rawInv?.data?.data)
+              ? rawInv.data.data
+              : [];
 
         // 1. OLAH DATA TRANSAKSI
         let incomeTotal = 0;
@@ -276,7 +303,7 @@ export default function SuperadminDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-[280px]">
+          <div className="flex-1 min-h-70">
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
@@ -296,7 +323,7 @@ export default function SuperadminDashboard() {
                   contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   labelStyle={{ color: '#64748b', fontSize: '11px', marginBottom: '6px', fontWeight: 600 }}
                   itemStyle={{ color: '#0f172a', fontSize: '12px', padding: '2px 0', fontWeight: 500 }}
-                  formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
+                  formatter={(value: any) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Jumlah']}
                   cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area type="monotone" dataKey="pemasukan" name="Pemasukan" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorIncome)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
@@ -336,7 +363,7 @@ export default function SuperadminDashboard() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '10px', padding: '8px 12px' }}
                     itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
-                    formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, undefined]}
+                    formatter={(value: any) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Nominal']}
                   />
                 </PieChart>
               </ResponsiveContainer>

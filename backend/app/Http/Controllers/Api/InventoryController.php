@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use Illuminate\Http\Request;
@@ -45,6 +46,9 @@ class InventoryController extends Controller
         }
 
         $inventory = Inventory::create($validated);
+
+        ActivityLogController::log('create', "Menambahkan inventory: {$inventory->name} ({$inventory->code})");
+
         return response()->json($inventory, 201);
     }
 
@@ -78,6 +82,9 @@ class InventoryController extends Controller
         }
 
         $inventory->update($validated);
+
+        ActivityLogController::log('update', "Memperbarui inventory: {$inventory->name} ({$inventory->code})");
+
         return response()->json($inventory);
     }
 
@@ -92,6 +99,9 @@ class InventoryController extends Controller
         }
         
         $inventory->delete();
+
+        ActivityLogController::log('delete', "Menghapus inventory: {$inventory->name} ({$inventory->code})");
+
         return response()->json(null, 204);
     }
 }

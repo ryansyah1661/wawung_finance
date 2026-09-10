@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
@@ -29,6 +30,8 @@ class InvoiceController extends Controller
         ]);
 
         $invoice = Invoice::create($validated);
+
+        ActivityLogController::log('create', "Membuat Invoice #{$invoice->invoice_number} untuk {$invoice->client_name}");
 
         return response()->json([
             'success' => true,
@@ -70,6 +73,8 @@ class InvoiceController extends Controller
 
         $invoice->update($validated);
 
+        ActivityLogController::log('update', "Memperbarui Invoice #{$invoice->invoice_number} untuk {$invoice->client_name}");
+
         return response()->json([
             'success' => true,
             'message' => 'Invoice berhasil diperbarui',
@@ -86,6 +91,8 @@ class InvoiceController extends Controller
         }
 
         $invoice->delete();
+
+        ActivityLogController::log('delete', "Menghapus Invoice #{$invoice->invoice_number} untuk {$invoice->client_name}");
 
         return response()->json([
             'success' => true,

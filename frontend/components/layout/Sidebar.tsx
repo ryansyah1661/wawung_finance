@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: "/master-data", label: "Master Data", icon: "database" },
   { href: "/inventory", label: "Inventory", icon: "inventory_2" },
   { href: "/user-management", label: "User Management", icon: "group" },
-  { href: "/audit-log", label: "Activity Log", icon: "history" },
+  { href: "/activity-log", label: "Activity Log", icon: "history" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 

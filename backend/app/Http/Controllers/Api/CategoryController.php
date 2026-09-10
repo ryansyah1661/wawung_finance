@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
@@ -46,6 +47,8 @@ class CategoryController extends Controller
 
         $category = Category::create($validated);
 
+        ActivityLogController::log('create', "Menambahkan kategori baru: {$category->name} ({$category->type})");
+
         return response()->json([
             'success' => true,
             'data'    => $category
@@ -65,6 +68,8 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
+        ActivityLogController::log('update', "Mengubah kategori: {$category->name}");
+
         return response()->json([
             'success' => true,
             'data'    => $category
@@ -74,7 +79,11 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         $category = Category::findOrFail($id);
+        $name = $category->name;
+
         $category->delete();
+
+        ActivityLogController::log('delete', "Menghapus kategori: {$name}");
 
         return response()->json([
             'success' => true,

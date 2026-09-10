@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -13,7 +14,6 @@ class TransactionController extends Controller
      */
     public function index(Request $request)
     {
-        // Mendukung fitur pencarian dan filter dari front-end
         $query = Transaction::query();
 
         if ($request->has('search')) {
@@ -42,6 +42,8 @@ class TransactionController extends Controller
 
         $transaction = Transaction::create($validated);
 
+        ActivityLogController::log('create', "Menambahkan transaksi: {$transaction->description}");
+
         return response()->json([
             'success' => true,
             'message' => 'Transaksi berhasil ditambahkan',
@@ -54,7 +56,12 @@ class TransactionController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $transaction = Transaction::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $transaction
+        ]);
     }
 
     /**
@@ -62,7 +69,26 @@ class TransactionController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $transaction = Transaction::findOrFail($id);
+
+        $validated = $request->validate([
+            'date' => 'sometimes|date',
+            'description' => 'sometimes|string',
+            'category' => 'sometimes|string',
+            'account' => 'sometimes|string',
+            'type' => 'sometimes|string',
+            'amount' => 'sometimes|numeric',
+        ]);
+
+        $transaction->update($validated);
+
+        ActivityLogController::log('update', "Mengubah transaksi: {$transaction->description}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi berhasil diperbarui',
+            'data' => $transaction
+        ]);
     }
 
     /**
@@ -70,6 +96,16 @@ class TransactionController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $transaction = Transaction::findOrFail($id);
+        $description = $transaction->description;
+
+        $transaction->delete();
+
+        ActivityLogController::log('delete', "Menghapus transaksi: {$description}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi berhasil dihapus'
+        ]);
     }
 }
