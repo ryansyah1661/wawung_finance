@@ -19,6 +19,23 @@ const ACTIVITY_CONFIG: Record<string, { icon: string; bg: string; text: string }
   login: { icon: 'login', bg: 'bg-slate-100', text: 'text-slate-500' },
 };
 
+const formatLogDescription = (desc: string) => {
+  if (!desc) return desc;
+  
+  // Lowercase first letter for natural continuation of sentence
+  let text = desc.charAt(0).toLowerCase() + desc.slice(1);
+  
+  // Better wording patterns with highlights
+  text = text.replace(/user: (.*?) \((.*?)\)/, 'pengguna <strong class="text-primary font-semibold">"$1"</strong> dengan role <strong class="text-slate-800 font-semibold">$2</strong>');
+  text = text.replace(/kategori baru: (.*?) \((.*?)\)/, 'kategori <strong class="text-primary font-semibold">"$2"</strong> dengan nama <strong class="text-slate-800 font-semibold">"$1"</strong>');
+  text = text.replace(/kategori: (.*)$/, 'kategori <strong class="text-primary font-semibold">"$1"</strong>');
+  text = text.replace(/transaksi: (.*)$/, 'transaksi: <strong class="text-primary font-semibold">"$1"</strong>');
+  text = text.replace(/akun\/rekening baru: (.*?) \((.*?)\)/, 'rekening baru <strong class="text-primary font-semibold">"$1"</strong> (No: $2)');
+  text = text.replace(/akun\/rekening: (.*)$/, 'rekening <strong class="text-primary font-semibold">"$1"</strong>');
+  
+  return text;
+};
+
 export default function ActivityLogPage() {
   const [filterAction, setFilterAction] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -131,7 +148,7 @@ export default function ActivityLogPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-900">
                       <span className="font-semibold">{log.user_name}</span>{' '}
-                      <span className="text-slate-600">{log.description}</span>
+                      <span className="text-slate-600" dangerouslySetInnerHTML={{ __html: formatLogDescription(log.description) }} />
                     </p>
                     <p className="font-mono text-xs text-slate-400 mt-1">
                       {new Date(log.created_at).toLocaleString('id-ID')}

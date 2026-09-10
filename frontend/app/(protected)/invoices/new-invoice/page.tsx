@@ -46,9 +46,10 @@ export default function CreateInvoicePage() {
     setIsSubmitting(true);
 
     const payload = {
-      client,
-      issueDate,
-      dueDate,
+      invoice_number: `INV-${Date.now()}`,
+      client_name: client,
+      issue_date: issueDate,
+      due_date: dueDate,
       amount: total,
       status: statusToSave,
       notes,

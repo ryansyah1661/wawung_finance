@@ -184,6 +184,13 @@ export default function SuperadminDashboard() {
   const saldo = totalIncome - totalExpense;
   const totalCatAmount = categoryBreakdown.reduce((s, c) => s + c.amount, 0);
 
+  const pieData = totalIncome > 0 || totalExpense > 0
+    ? [
+        { name: 'Pemasukan', amount: totalIncome, fill: '#10b981' },
+        { name: 'Pengeluaran', amount: totalExpense, fill: '#f43f5e' },
+      ].filter(d => d.amount > 0)
+    : [{ name: 'Kosong', amount: 1, fill: '#e2e8f0' }];
+
   if (loading) {
     return (
       <div className="p-12 text-center text-slate-500 font-medium">
@@ -340,26 +347,22 @@ export default function SuperadminDashboard() {
 
         {/* Donut Chart Area */}
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Komposisi Pengeluaran</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Komposisi Keuangan</h3>
 
           <div className="flex-1 flex items-center justify-center relative my-2">
             <div className="w-full relative flex items-center justify-center" style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={categoryBreakdown.length > 0 ? categoryBreakdown : [{ name: 'Kosong', amount: 1, color: '#f1f5f9' }]}
+                    data={pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={68}
                     outerRadius={88}
-                    paddingAngle={categoryBreakdown.length > 1 ? 4 : 0}
+                    paddingAngle={pieData.length > 1 ? 4 : 0}
                     dataKey="amount"
                     stroke="none"
-                  >
-                    {(categoryBreakdown.length > 0 ? categoryBreakdown : [{ name: 'Kosong', amount: 1, color: '#f1f5f9' }]).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
+                  />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '10px', padding: '8px 12px' }}
                     itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
@@ -370,26 +373,45 @@ export default function SuperadminDashboard() {
 
               {/* Center label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">Total Keluar</span>
-                <span className="text-base font-bold text-slate-900 font-mono mt-0.5">{formatRp(totalExpense)}</span>
+                <span className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">Saldo Bersih</span>
+                <span className={`text-base font-bold font-mono mt-0.5 ${saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {saldo >= 0 ? '+' : '-'}Rp {Math.abs(saldo).toLocaleString('id-ID')}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Legend Area */}
-          <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-y-2 gap-x-4">
-            {categoryBreakdown.length > 0 ? categoryBreakdown.map((cat) => (
-              <div key={cat.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 truncate pr-1">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></span>
-                  <span className="text-slate-600 font-medium truncate">{cat.name}</span>
+          <div className="pt-3 border-t border-slate-100 space-y-2.5">
+            {totalIncome > 0 || totalExpense > 0 ? (
+              <>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-emerald-500"></span>
+                    <span className="text-slate-600 font-medium">Pemasukan</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-500 font-mono text-[11px]">Rp {totalIncome.toLocaleString('id-ID')}</span>
+                    <span className="text-emerald-700 font-semibold font-mono w-10 text-right">
+                      {totalIncome + totalExpense > 0 ? Math.round((totalIncome / (totalIncome + totalExpense)) * 100) : 0}%
+                    </span>
+                  </div>
                 </div>
-                <span className="text-slate-900 font-semibold font-mono">
-                  {totalCatAmount > 0 ? Math.round((cat.amount / totalCatAmount) * 100) : 0}%
-                </span>
-              </div>
-            )) : (
-              <div className="col-span-2 text-xs text-slate-400 text-center py-1">Belum ada data pengeluaran</div>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-rose-500"></span>
+                    <span className="text-slate-600 font-medium">Pengeluaran</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-500 font-mono text-[11px]">Rp {totalExpense.toLocaleString('id-ID')}</span>
+                    <span className="text-rose-700 font-semibold font-mono w-10 text-right">
+                      {totalIncome + totalExpense > 0 ? Math.round((totalExpense / (totalIncome + totalExpense)) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-xs text-slate-400 text-center py-1">Belum ada data transaksi</div>
             )}
           </div>
         </div>

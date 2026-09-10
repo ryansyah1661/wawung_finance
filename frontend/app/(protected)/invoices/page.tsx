@@ -13,9 +13,10 @@ interface InvoiceItem {
 
 interface Invoice {
   id: string;
-  client: string;
-  issueDate: string;
-  dueDate: string;
+  invoice_number?: string;
+  client_name?: string;
+  issue_date?: string;
+  due_date?: string;
   amount: number;
   status: string;
   notes?: string;
@@ -106,11 +107,12 @@ export default function InvoicesPage() {
 
   const filteredInvoices = safeInvoices.filter((inv) => {
     const matchSearch =
-      inv.client?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.id?.toString().toLowerCase().includes(searchQuery.toLowerCase());
     const mappedStatus = STATUS_CONFIG[inv.status]?.label || 'Draft';
     const matchStatus = statusFilter === 'All Status' || mappedStatus === statusFilter;
-    const matchDate = dateFilter === '' || inv.dueDate === dateFilter;
+    const matchDate = dateFilter === '' || inv.due_date === dateFilter;
     return matchSearch && matchStatus && matchDate;
   });
 
@@ -118,10 +120,10 @@ export default function InvoicesPage() {
     import('xlsx').then((XLSX) => {
       const worksheet = XLSX.utils.json_to_sheet(
         filteredInvoices.map((e: Invoice) => ({
-          'No. Invoice': e.id,
-          Client: e.client,
-          'Tanggal Terbit': e.issueDate,
-          'Jatuh Tempo': e.dueDate,
+          'No. Invoice': e.invoice_number || e.id,
+          Client: e.client_name,
+          'Tanggal Terbit': e.issue_date,
+          'Jatuh Tempo': e.due_date,
           Jumlah: e.amount,
           Status: STATUS_CONFIG[e.status]?.label || e.status,
         }))
@@ -309,11 +311,11 @@ export default function InvoicesPage() {
                   return (
                     <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="p-3 font-mono text-xs font-medium text-slate-900">
-                        {invoice.id}
+                        {invoice.invoice_number || invoice.id}
                       </td>
-                      <td className="p-3 font-medium text-slate-900">{invoice.client}</td>
-                      <td className="p-3 text-slate-500">{invoice.issueDate}</td>
-                      <td className="p-3 text-slate-500">{invoice.dueDate}</td>
+                      <td className="p-3 font-medium text-slate-900">{invoice.client_name}</td>
+                      <td className="p-3 text-slate-500">{invoice.issue_date}</td>
+                      <td className="p-3 text-slate-500">{invoice.due_date}</td>
                       <td className="p-3 text-right font-mono font-medium text-slate-900">
                         {formatRupiah(invoice.amount)}
                       </td>
@@ -339,13 +341,13 @@ export default function InvoicesPage() {
                             onClick={() => {
                               const htmlContent = `
                                 <html>
-                                  <head><title>Invoice ${invoice.id}</title></head>
+                                  <head><title>Invoice ${invoice.invoice_number || invoice.id}</title></head>
                                   <body style="font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
-                                    <h1>INVOICE ${invoice.id}</h1>
+                                    <h1>INVOICE ${invoice.invoice_number || invoice.id}</h1>
                                     <hr/>
-                                    <p><strong>Client:</strong> ${invoice.client}</p>
-                                    <p><strong>Tanggal Terbit:</strong> ${invoice.issueDate}</p>
-                                    <p><strong>Jatuh Tempo:</strong> ${invoice.dueDate}</p>
+                                    <p><strong>Client:</strong> ${invoice.client_name}</p>
+                                    <p><strong>Tanggal Terbit:</strong> ${invoice.issue_date}</p>
+                                    <p><strong>Jatuh Tempo:</strong> ${invoice.due_date}</p>
                                     <p><strong>Total:</strong> Rp ${Number(invoice.amount || 0).toLocaleString('id-ID')}</p>
                                     <br/>
                                     <p><em>Dokumen ini di-generate otomatis oleh Wawung Finance.</em></p>

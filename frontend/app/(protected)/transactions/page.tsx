@@ -16,6 +16,8 @@ export default function TransactionsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
 
   // Custom Modals State
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
@@ -55,6 +57,29 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions();
   }, [searchQuery, filterType, filterCategory, filterDate]);
+
+  // Fetch categories & accounts dari Master Data API
+  useEffect(() => {
+    const fetchMasterData = async () => {
+      try {
+        const [catRes, accRes] = await Promise.all([
+          fetch('http://localhost:8000/api/categories?type=categories&status=active'),
+          fetch('http://localhost:8000/api/categories?type=accounts&status=active'),
+        ]);
+        if (catRes.ok) {
+          const catData = await catRes.json();
+          setCategories(Array.isArray(catData) ? catData : catData.data || []);
+        }
+        if (accRes.ok) {
+          const accData = await accRes.json();
+          setAccounts(Array.isArray(accData) ? accData : accData.data || []);
+        }
+      } catch (error) {
+        console.error('Gagal mengambil master data:', error);
+      }
+    };
+    fetchMasterData();
+  }, []);
 
   // 2. HAPUS DATA VIA API (DELETE)
   const handleDelete = async () => {
@@ -183,12 +208,9 @@ export default function TransactionsPage() {
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
             <option>All Categories</option>
-            <option>Operations</option>
-            <option>Marketing</option>
-            <option>Payroll</option>
-            <option>IT & Tech</option>
-            <option>Income</option>
-            <option>Lainnya</option>
+            {categories.map((cat: any) => (
+              <option key={cat.id} value={cat.name}>{cat.name}</option>
+            ))}
           </select>
         </div>
         <div className="w-56">
@@ -416,12 +438,10 @@ export default function TransactionsPage() {
                     onChange={(e) => setEditData({ ...editData, category: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
                   >
-                    <option>Operations</option>
-                    <option>Marketing</option>
-                    <option>Payroll</option>
-                    <option>IT & Tech</option>
-                    <option>Income</option>
-                    <option>Lainnya</option>
+                    <option value={editData.category}>{editData.category}</option>
+                    {categories.filter((c: any) => c.name !== editData.category).map((cat: any) => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -431,9 +451,10 @@ export default function TransactionsPage() {
                     onChange={(e) => setEditData({ ...editData, account: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
                   >
-                    <option>Mandiri Bisnis</option>
-                    <option>BCA Utama</option>
-                    <option>Kas Kecil</option>
+                    <option value={editData.account}>{editData.account}</option>
+                    {accounts.filter((a: any) => a.name !== editData.account).map((acc: any) => (
+                      <option key={acc.id} value={acc.name}>{acc.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
