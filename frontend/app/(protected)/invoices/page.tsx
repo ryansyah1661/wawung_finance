@@ -24,10 +24,10 @@ interface Invoice {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  overdue: { label: 'Overdue', bg: 'bg-rose-50', text: 'text-rose-700' },
-  'due-soon': { label: 'Due Soon', bg: 'bg-amber-50', text: 'text-amber-700' },
-  paid: { label: 'Paid', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  draft: { label: 'Draft', bg: 'bg-slate-100', text: 'text-slate-600' },
+  overdue: { label: 'Terlambat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  'due-soon': { label: 'Segera Jatuh Tempo', bg: 'bg-amber-50', text: 'text-amber-700' },
+  paid: { label: 'Lunas', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  draft: { label: 'Draf', bg: 'bg-slate-100', text: 'text-slate-600' },
 };
 
 function formatRupiah(amount: number) {
@@ -110,7 +110,7 @@ export default function InvoicesPage() {
       inv.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.id?.toString().toLowerCase().includes(searchQuery.toLowerCase());
-    const mappedStatus = STATUS_CONFIG[inv.status]?.label || 'Draft';
+    const mappedStatus = STATUS_CONFIG[inv.status]?.label || 'Draf';
     const matchStatus = statusFilter === 'All Status' || mappedStatus === statusFilter;
     const matchDate = dateFilter === '' || inv.due_date === dateFilter;
     return matchSearch && matchStatus && matchDate;
@@ -198,7 +198,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Overdue
+              Terlambat
             </p>
             <p className="text-lg font-bold text-slate-900 font-mono">
               {countOverdue} <span className="text-xs font-normal text-slate-500">invoice</span>
@@ -211,7 +211,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Due Soon
+              Segera Jatuh Tempo
             </p>
             <p className="text-lg font-bold text-slate-900 font-mono">
               {countDueSoon} <span className="text-xs font-normal text-slate-500">invoice</span>
@@ -224,7 +224,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Paid (Month)
+              Lunas (Bulan Ini)
             </p>
             <p className="text-lg font-bold text-slate-900 font-mono">{formatShortRupiah(totalPaid)}</p>
           </div>
@@ -257,11 +257,11 @@ export default function InvoicesPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>All Status</option>
-            <option>Draft</option>
-            <option>Due Soon</option>
-            <option>Overdue</option>
-            <option>Paid</option>
+            <option>Semua Status</option>
+            <option>Draf</option>
+            <option>Segera Jatuh Tempo</option>
+            <option>Terlambat</option>
+            <option>Lunas</option>
           </select>
         </div>
         <div className="w-56">

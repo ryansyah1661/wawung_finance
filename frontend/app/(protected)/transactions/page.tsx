@@ -178,7 +178,7 @@ export default function TransactionsPage() {
 
       {/* Filters Section */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-50">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
           <input
             type="text"
