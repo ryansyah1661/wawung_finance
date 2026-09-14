@@ -27,6 +27,23 @@ export default function SuperadminDashboard() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ name: string, amount: number, color: string }[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
+
+  // Fetch user name
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/api/users/1');
+        if (res.ok) {
+          const data = await res.json();
+          setUserName(data.name || '');
+        }
+      } catch (e) {
+        console.error('Gagal fetch user', e);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -193,8 +210,13 @@ export default function SuperadminDashboard() {
 
   if (loading) {
     return (
-      <div className="p-12 text-center text-slate-500 font-medium">
-        Memuat data dashboard...
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <img
+          src="/assets/images/logo-kawung.png"
+          alt="Kawung Finance"
+          className="w-16 h-16 rounded-xl animate-pulse"
+        />
+        <p className="text-slate-500 font-medium text-sm">Memuat data dashboard...</p>
       </div>
     );
   }
@@ -204,7 +226,7 @@ export default function SuperadminDashboard() {
 
       {/* Greeting */}
       <header className="mb-2">
-        <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-1 tracking-tight">Selamat datang, Ahmad!</h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-1 tracking-tight">Selamat datang, {userName || 'Admin'}!</h2>
         <p className="text-sm text-slate-500">Berikut adalah ringkasan operasional Kawung Finance untuk hari ini.</p>
       </header>
 

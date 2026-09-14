@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import api from '@/lib/api';
 
 export default function TopNav() {
-  const [userData, setUserData] = useState({ name: 'Ahmad Wijaya', role: 'Super Admin' });
+  const [userData, setUserData] = useState({ name: '', role: '' });
 
   React.useEffect(() => {
     const fetchUser = async () => {
@@ -12,8 +12,8 @@ export default function TopNav() {
         const res = await api.get('/users/1');
         if (res.data) {
           setUserData({
-            name: res.data.name || 'Ahmad Wijaya',
-            role: res.data.position || res.data.role || 'Super Admin',
+            name: res.data.name || '',
+            role: res.data.position || res.data.role || '',
           });
         }
       } catch (e) {

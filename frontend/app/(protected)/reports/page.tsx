@@ -38,10 +38,10 @@ const REPORT_TYPES = [
 ];
 
 const DEFAULT_REPORTS = [
-  { name: 'Laporan Laba Rugi - Oktober 2023', type: 'PDF', date: '2023-10-27', size: '284 KB' },
-  { name: 'Arus Kas - Q3 2023', type: 'XLSX', date: '2023-10-15', size: '512 KB' },
-  { name: 'Rincian Pengeluaran - September 2023', type: 'PDF', date: '2023-10-02', size: '198 KB' },
-  { name: 'Neraca - September 2023', type: 'PDF', date: '2023-10-01', size: '221 KB' },
+  { name: 'Laporan Laba Rugi - September 2026', type: 'PDF', date: '2026-09-10', size: '284 KB' },
+  { name: 'Arus Kas - Q3 2026', type: 'XLSX', date: '2026-09-08', size: '512 KB' },
+  { name: 'Rincian Pengeluaran - Agustus 2026', type: 'PDF', date: '2026-09-02', size: '198 KB' },
+  { name: 'Neraca - Agustus 2026', type: 'PDF', date: '2026-09-01', size: '221 KB' },
 ];
 
 export default function ReportsPage() {
@@ -50,6 +50,7 @@ export default function ReportsPage() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, profit: 0, margin: 0 });
   const [recentReports, setRecentReports] = useState<any[]>([]);
+  const [transactionsData, setTransactionsData] = useState<any[]>([]);
 
   const fetchReportData = useCallback(async () => {
     setIsLoading(true);
@@ -60,11 +61,19 @@ export default function ReportsPage() {
       const responseData = await res.json();
 
       // Memastikan format data berupa Array
-      const saved = Array.isArray(responseData)
-        ? responseData
-        : Array.isArray(responseData.data)
-          ? responseData.data
-          : [];
+      let saved: any[] = [];
+      if (Array.isArray(responseData)) {
+        saved = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          saved = responseData.data;
+        } else if (Array.isArray(responseData.data.data)) {
+          saved = responseData.data.data;
+        }
+      }
+
+      // Simpan data transaksi mentah untuk dipakai di laporan
+      setTransactionsData(saved);
 
       // Hitung ringkasan
       let totalIncome = 0;
@@ -159,8 +168,6 @@ export default function ReportsPage() {
   }, [fetchReportData]);
 
   const formatShortRupiah = (amount: number) => {
-    if (Math.abs(amount) >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
-    if (Math.abs(amount) >= 1000) return `Rp ${(amount / 1000).toFixed(1)}K`;
     return `Rp ${amount.toLocaleString('id-ID')}`;
   };
 
@@ -169,11 +176,85 @@ export default function ReportsPage() {
     csvRows.push([`"${title}"`]);
     csvRows.push([`"Tanggal Dibuat:", "${date}"`]);
     csvRows.push([]);
-    csvRows.push(['"Ringkasan Transaksi"']);
-    csvRows.push(['"Keterangan"', '"Nilai"']);
-    csvRows.push([`"Total Pendapatan"`, `"${summary.income}"`]);
-    csvRows.push([`"Total Pengeluaran"`, `"${summary.expense}"`]);
-    csvRows.push([`"Laba Bersih"`, `"${summary.profit}"`]);
+
+    const reportName = title.toLowerCase();
+
+    if (reportName.includes('laba rugi')) {
+      csvRows.push(['"Laporan Laba Rugi"']);
+      csvRows.push(['"Keterangan"', '"Nilai"']);
+      csvRows.push([`"Total Pendapatan"`, `"${summary.income}"`]);
+      csvRows.push([`"Total Beban/Pengeluaran"`, `"${summary.expense}"`]);
+      csvRows.push([`"Laba Bersih"`, `"${summary.profit}"`]);
+      csvRows.push([`"Margin Laba"`, `"${summary.margin.toFixed(2)}%"`]);
+    } else if (reportName.includes('arus kas')) {
+      csvRows.push(['"Arus Kas Bulanan (6 Bulan Terakhir)"']);
+      csvRows.push(['"Bulan"', '"Kas Masuk"', '"Kas Keluar"', '"Surplus/Defisit"']);
+      chartData.forEach(d => {
+        csvRows.push([`"${d.month}"`, `"${d.rawIncome}"`, `"${d.rawExpense}"`, `"${d.rawIncome - d.rawExpense}"`]);
+      });
+      csvRows.push([]);
+      csvRows.push(['"Total Kas Masuk"', `"${summary.income}"`]);
+      csvRows.push(['"Total Kas Keluar"', `"${summary.expense}"`]);
+      csvRows.push(['"Total Arus Kas Bersih"', `"${summary.profit}"`]);
+    } else if (reportName.includes('neraca')) {
+      // Hitung saldo Kas & Bank per akun dari transaksi riil
+      const accountBalances: Record<string, number> = {};
+      transactionsData.forEach((t: any) => {
+        const acct = t.account || 'Lainnya';
+        const type = (t.type || '').toLowerCase();
+        const amount = Number(t.amount || 0);
+        if (!accountBalances[acct]) accountBalances[acct] = 0;
+        if (type === 'income' || type === 'pemasukan' || type === 'in') {
+          accountBalances[acct] += amount;
+        } else if (type === 'expense' || type === 'pengeluaran' || type === 'out') {
+          accountBalances[acct] -= amount;
+        }
+      });
+
+      let totalAset = 0;
+      csvRows.push(['"Neraca Keuangan"']);
+      csvRows.push(['"Posisi"', '"Keterangan"', '"Nilai"']);
+      csvRows.push([]);
+      csvRows.push(['"=== ASET ==="']);
+      Object.entries(accountBalances).forEach(([acct, balance]) => {
+        csvRows.push(['"Aset"', `"Kas - ${acct}"`, `"${balance}"`]);
+        totalAset += balance;
+      });
+      csvRows.push(['""', '"Total Aset"', `"${totalAset}"`]);
+      csvRows.push([]);
+      csvRows.push(['"=== EKUITAS ==="']);
+      csvRows.push(['"Ekuitas"', '"Modal / Saldo Bersih"', `"${totalAset}"`]);
+      csvRows.push([]);
+      csvRows.push(['"Catatan: Neraca ini dihitung otomatis dari seluruh transaksi yang tercatat di sistem."']);
+    } else if (reportName.includes('rincian pengeluaran')) {
+      // Hitung breakdown pengeluaran per kategori dari transaksi riil
+      const categoryBreakdown: Record<string, number> = {};
+      transactionsData.forEach((t: any) => {
+        const type = (t.type || '').toLowerCase();
+        if (type === 'expense' || type === 'pengeluaran' || type === 'out') {
+          const cat = t.category || 'Lainnya';
+          const amount = Number(t.amount || 0);
+          if (!categoryBreakdown[cat]) categoryBreakdown[cat] = 0;
+          categoryBreakdown[cat] += amount;
+        }
+      });
+
+      csvRows.push(['"Rincian Pengeluaran per Kategori"']);
+      csvRows.push(['"Kategori"', '"Nilai"']);
+      let totalExp = 0;
+      Object.entries(categoryBreakdown).forEach(([cat, val]) => {
+        csvRows.push([`"${cat}"`, `"${val}"`]);
+        totalExp += val;
+      });
+      csvRows.push([]);
+      csvRows.push(['"Total Pengeluaran"', `"${totalExp}"`]);
+    } else {
+      csvRows.push(['"Ringkasan Transaksi"']);
+      csvRows.push(['"Keterangan"', '"Nilai"']);
+      csvRows.push([`"Total Pendapatan"`, `"${summary.income}"`]);
+      csvRows.push([`"Total Pengeluaran"`, `"${summary.expense}"`]);
+      csvRows.push([`"Laba Bersih"`, `"${summary.profit}"`]);
+    }
 
     const csvContent = csvRows.map((e) => e.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -378,6 +459,19 @@ export default function ReportsPage() {
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                           download
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = recentReports.filter((_, i) => i !== idx);
+                          setRecentReports(updated);
+                          localStorage.setItem('mock_reports', JSON.stringify(updated));
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        title="Hapus"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                          delete
                         </span>
                       </button>
                     </div>

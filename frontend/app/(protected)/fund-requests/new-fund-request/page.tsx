@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -8,6 +8,9 @@ export default function NewFundRequestPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [applicantName, setApplicantName] = useState('');
+  const [department, setDepartment] = useState('');
+  const [departments, setDepartments] = useState<any[]>([]);
   const [purpose, setPurpose] = useState('');
   const [amount, setAmount] = useState('');
   const [neededDate, setNeededDate] = useState('');
@@ -17,6 +20,17 @@ export default function NewFundRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Fetch departments from Master Data
+  useEffect(() => {
+    fetch('/api/categories?type=departments')
+      .then(res => res.json())
+      .then(data => {
+        const items = Array.isArray(data) ? data : data.data || [];
+        setDepartments(items);
+      })
+      .catch(() => setDepartments([]));
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -42,7 +56,7 @@ export default function NewFundRequestPage() {
     e.preventDefault();
 
     const cleanAmount = parseInt(amount.replace(/\D/g, ''), 10);
-    if (!purpose || !cleanAmount || !neededDate) {
+    if (!applicantName || !department || !purpose || !cleanAmount || !neededDate) {
       setErrorMsg('Harap isi semua kolom wajib!');
       return;
     }
@@ -51,13 +65,12 @@ export default function NewFundRequestPage() {
       setIsSubmitting(true);
       setErrorMsg('');
 
-      // Menggunakan FormData karena Laravel butuh multipart jika ada file upload
       const formData = new FormData();
       formData.append('purpose', purpose);
       formData.append('amount', cleanAmount.toString());
       formData.append('need_date', neededDate);
-      formData.append('applicant_name', 'Ryan Syah'); // Nilai default / ganti dengan session user
-      formData.append('department', 'Finance');       // Nilai default / ganti dengan session user
+      formData.append('applicant_name', applicantName);
+      formData.append('department', department);
       if (description) formData.append('description', description);
       if (attachment) formData.append('attachment', attachment);
 
@@ -107,6 +120,38 @@ export default function NewFundRequestPage() {
 
       {/* Form Card */}
       <form onSubmit={handleSubmit} className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Nama Pemohon <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={applicantName}
+              onChange={(e) => setApplicantName(e.target.value)}
+              placeholder="Contoh: Ryan Syah"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm placeholder-slate-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Departemen <span className="text-rose-500">*</span>
+            </label>
+            <select
+              required
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+            >
+              <option value="" disabled>Pilih Departemen...</option>
+              {departments.map((dept: any) => (
+                <option key={dept.id} value={dept.name}>{dept.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
             Keperluan Singkat <span className="text-rose-500">*</span>

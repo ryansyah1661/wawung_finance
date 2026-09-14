@@ -146,8 +146,6 @@ export default function InvoicesPage() {
   const countDueSoon = safeInvoices.filter((i) => i.status === 'due-soon').length;
 
   const formatShortRupiah = (amount: number) => {
-    if (amount >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `Rp ${(amount / 1000).toFixed(1)}K`;
     return formatRupiah(amount);
   };
 
@@ -185,7 +183,7 @@ export default function InvoicesPage() {
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Total Outstanding
+              Total Belum Dibayar
             </p>
             <p className="text-lg font-bold text-slate-900 font-mono">
               {formatShortRupiah(totalOutstanding)}
