@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +15,26 @@ export default function NewReimbursementPage() {
   const [purpose, setPurpose] = useState('');
   const [attachment, setAttachment] = useState<{ name: string; size: number; type: string; dataUrl: string } | null>(null);
   const [validationError, setValidationError] = useState('');
+  const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        const categories = data.data || data;
+        if (Array.isArray(categories)) {
+          const filtered = categories.filter((c: any) => c.status === 'active' && c.type === 'categories');
+          if (filtered.length > 0) {
+            setAvailableCategories(filtered);
+            return;
+          }
+        }
+        setAvailableCategories([{name: 'Travel'}, {name: 'Meals & Entertainment'}, {name: 'Office Supplies'}, {name: 'Training & Development'}]);
+      })
+      .catch(() => {
+        setAvailableCategories([{name: 'Travel'}, {name: 'Meals & Entertainment'}, {name: 'Office Supplies'}, {name: 'Training & Development'}]);
+      });
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,9 +92,12 @@ export default function NewReimbursementPage() {
       }
 
       setShowSuccessModal(true);
+      setTimeout(() => {
+        router.push('/reimbursements');
+      }, 1500);
     } catch (err: any) {
       setValidationError(err.message || 'Terjadi kesalahan pada server.');
-    } font - semibold {
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -143,11 +166,10 @@ export default function NewReimbursementPage() {
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
             <option value="">Pilih kategori...</option>
-            <option>Travel</option>
-            <option>Meals & Entertainment</option>
-            <option>Office Supplies</option>
-            <option>Training & Development</option>
-            <option>Lainnya</option>
+            {availableCategories.map((cat, idx) => (
+              <option key={idx} value={cat.name}>{cat.name}</option>
+            ))}
+            <option value="Lainnya">Lainnya</option>
           </select>
         </div>
 
@@ -163,26 +185,25 @@ export default function NewReimbursementPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bukti / Nota (Wajib)</label>
-          <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50">
+          <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50 hover:bg-slate-100">
             <input
               type="file"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               onChange={handleFileUpload}
               accept=".png,.jpg,.jpeg,.pdf"
             />
             {attachment ? (
-              <div className="text-center">
-                <span className="material-symbols-outlined text-primary text-[28px]">check_circle</span>
-                <p className="text-sm font-medium text-slate-900 mt-2">{attachment.name}</p>
-                <p className="text-xs text-slate-500">{(attachment.size / 1024 / 1024).toFixed(2)} MB</p>
-                <button type="button" onClick={(e) => { e.preventDefault(); setAttachment(null); }} className="mt-3 text-xs text-rose-600 hover:underline relative z-10">
-                  Hapus / Ganti File
-                </button>
-              </div>
+              <>
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-1">
+                  <span className="material-symbols-outlined text-[24px]">task</span>
+                </div>
+                <p className="text-sm font-semibold text-slate-900">{attachment.name}</p>
+                <p className="text-xs text-slate-500">{(attachment.size / 1024 / 1024).toFixed(2)} MB • Klik untuk mengganti file</p>
+              </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-slate-400 text-[28px]">receipt_long</span>
-                <p className="text-sm text-slate-500">Klik atau drag untuk upload nota/kwitansi</p>
+                <p className="text-sm text-slate-600 font-medium">Klik atau drag untuk upload nota/kwitansi</p>
                 <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
               </>
             )}
@@ -195,7 +216,7 @@ export default function NewReimbursementPage() {
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
         <span className="material-symbols-outlined text-blue-600 text-[20px]">info</span>
         <p className="text-sm text-blue-800">
-          Pengajuan akan dikirim ke Superadmin untuk direview. Kamu akan mendapat notifikasi setelah statusnya diperbarui.
+          Pengajuan akan berstatus <span className="font-semibold">Pending Approval</span> hingga direview oleh tim Finance.
         </p>
       </div>
 
@@ -224,13 +245,7 @@ export default function NewReimbursementPage() {
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-            <p className="text-slate-500 mb-6">Pengajuan reimbursement telah berhasil dikirim ke server.</p>
-            <button
-              onClick={() => router.push('/reimbursements')}
-              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
-            >
-              Ke Daftar Reimbursement
-            </button>
+            <p className="text-slate-500 mb-6">Pengajuan berhasil dibuat.</p>
           </div>
         </div>
       )}

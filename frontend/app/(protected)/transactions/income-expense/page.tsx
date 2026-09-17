@@ -134,7 +134,7 @@ export default function InputTransactionPage() {
             }`}
         >
           <span className="material-symbols-outlined text-[18px]">remove</span>
-          Expense
+          Pengeluaran
         </button>
         <button
           type="button"
@@ -143,7 +143,7 @@ export default function InputTransactionPage() {
             }`}
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
-          Income
+          Pemasukan
         </button>
       </div>
 
@@ -285,13 +285,7 @@ export default function InputTransactionPage() {
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-            <p className="text-slate-500 mb-6">Transaksi Anda telah berhasil disimpan.</p>
-            <button
-              onClick={() => router.push('/transactions')}
-              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
-            >
-              Ke Daftar Transaksi
-            </button>
+            <p className="text-slate-500 mb-6">Transaksi berhasil disimpan.</p>
           </div>
         </div>
       )}

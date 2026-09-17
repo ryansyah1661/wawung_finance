@@ -27,6 +27,7 @@ export default function ReimbursementDetail() {
   const [confirmAction, setConfirmAction] = useState<'Approved' | 'Rejected' | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
   // 1. Fetch data dari API berdasarkan ID
@@ -70,8 +71,11 @@ export default function ReimbursementDetail() {
       setSuccessMessage(`Pengajuan berhasil di-${confirmAction.toLowerCase()}!`);
       setConfirmAction(null);
       setShowSuccess(true);
+      setTimeout(() => {
+        router.push('/reimbursements');
+      }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan');
+      setErrorMsg(err.message || 'Terjadi kesalahan');
     } finally {
       setIsSubmitting(false);
     }
@@ -340,14 +344,27 @@ export default function ReimbursementDetail() {
                 <span className="material-symbols-outlined" style={{ fontSize: '40px' }}>check_circle</span>
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-              <p className="text-slate-500 mb-8">{successMessage}</p>
-              <button
-                onClick={() => router.push('/reimbursements')}
-                className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm hover:shadow-md cursor-pointer"
-              >
-                Kembali ke Daftar Reimbursement
-              </button>
+              <p className="text-slate-500 mb-2">{successMessage}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
+            <p className="text-slate-500 mb-6">{errorMsg}</p>
+            <button
+              onClick={() => setErrorMsg('')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Mengerti
+            </button>
           </div>
         </div>
       )}

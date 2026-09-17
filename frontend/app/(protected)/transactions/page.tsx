@@ -163,15 +163,15 @@ export default function TransactionsPage() {
             className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
-            Export
+            Cetak Laporan
           </button>
           <Link href="/transactions/income-expense?type=expense" className="bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove</span>
-            Input Expense
+            Catat Pengeluaran
           </Link>
           <Link href="/transactions/income-expense?type=income" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-            Input Income
+            Catat Pemasukan
           </Link>
         </div>
       </div>
@@ -195,9 +195,9 @@ export default function TransactionsPage() {
             onChange={(e) => setFilterType(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>All Types</option>
-            <option>Income</option>
-            <option>Expense</option>
+            <option>Semua Type</option>
+            <option>Pemasukan</option>
+            <option>Pengeluaran</option>
           </select>
         </div>
         <div className="w-48">
@@ -207,7 +207,7 @@ export default function TransactionsPage() {
             onChange={(e) => setFilterCategory(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>All Categories</option>
+            <option>Semua Kategori</option>
             {categories.map((cat: any) => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}

@@ -15,6 +15,7 @@ export default function CreateInvoicePage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [client, setClient] = useState('');
   const [issueDate, setIssueDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -39,7 +40,7 @@ export default function CreateInvoicePage() {
 
   const handleSave = async (statusToSave: string) => {
     if (!client || !issueDate || !dueDate) {
-      alert('Mohon lengkapi Nama Klien, Tanggal Terbit, dan Jatuh Tempo.');
+      setValidationError('Mohon lengkapi Nama Klien, Tanggal Terbit, dan Jatuh Tempo.');
       return;
     }
 
@@ -74,7 +75,7 @@ export default function CreateInvoicePage() {
         router.push('/invoices');
       }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan sistem saat menyimpan.');
+      setValidationError(err.message || 'Terjadi kesalahan sistem saat menyimpan.');
     } finally {
       setIsSubmitting(false);
     }
@@ -237,8 +238,26 @@ export default function CreateInvoicePage() {
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
               <span className="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
             </div>
-            <h3 className="text-xl font-bold text-slate-900">Invoice Berhasil Disimpan</h3>
-            <p className="text-slate-500 text-sm">Data invoice telah berhasil dikirim ke server. Mengalihkan ke halaman daftar invoice...</p>
+            <h3 className="text-xl font-bold text-slate-900">Berhasil!</h3>
+            <p className="text-slate-500 text-sm">Invoice berhasil dibuat.</p>
+          </div>
+        </div>
+      )}
+      {/* Validation / Error Modal */}
+      {validationError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
+            <p className="text-slate-500 mb-6">{validationError}</p>
+            <button
+              onClick={() => setValidationError('')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Mengerti
+            </button>
           </div>
         </div>
       )}

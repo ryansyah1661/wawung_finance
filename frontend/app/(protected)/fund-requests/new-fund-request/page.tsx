@@ -20,6 +20,7 @@ export default function NewFundRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   // Fetch departments from Master Data
   useEffect(() => {
@@ -35,8 +36,8 @@ export default function NewFundRequestPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        alert('Ukuran file maksimal 5MB');
+      if (selectedFile.size > 2 * 1024 * 1024) {
+        setValidationError('Ukuran file maksimal 2MB');
         return;
       }
       setAttachment(selectedFile);
@@ -89,6 +90,9 @@ export default function NewFundRequestPage() {
       }
 
       setShowSuccessModal(true);
+      setTimeout(() => {
+        router.push('/fund-requests');
+      }, 1500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Terjadi kesalahan sistem saat menyimpan data.');
     } finally {
@@ -97,7 +101,7 @@ export default function NewFundRequestPage() {
   };
 
   return (
-    <div className="max-w-[800px] mx-auto space-y-6">
+    <div className="max-w-200 mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -232,7 +236,7 @@ export default function NewFundRequestPage() {
               <>
                 <span className="material-symbols-outlined text-slate-400 text-[28px]">attachment</span>
                 <p className="text-sm text-slate-600 font-medium">Klik untuk upload dokumen pendukung</p>
-                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
+                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 2MB</p>
               </>
             )}
           </div>
@@ -242,7 +246,7 @@ export default function NewFundRequestPage() {
         <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
           <span className="material-symbols-outlined text-blue-600 text-[20px]">info</span>
           <p className="text-sm text-blue-800">
-            Pengajuan akan berstatus <span className="font-semibold">Pending Approval</span> hingga direview oleh Superadmin.
+            Pengajuan akan berstatus <span className="font-semibold">Pending Approval</span> hingga direview oleh tim Finance.
           </p>
         </div>
 
@@ -272,12 +276,25 @@ export default function NewFundRequestPage() {
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
-            <p className="text-slate-500 mb-6">Pengajuan dana telah berhasil dikirimkan ke server.</p>
+            <p className="text-slate-500 mb-6">Pengajuan berhasil dibuat.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Validation / Error Modal */}
+      {validationError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
+            <p className="text-slate-500 mb-6">{validationError}</p>
             <button
-              onClick={() => router.push('/fund-requests')}
+              onClick={() => setValidationError('')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:brightness-110 transition-colors cursor-pointer"
             >
-              Ke Daftar Pengajuan
+              Mengerti
             </button>
           </div>
         </div>

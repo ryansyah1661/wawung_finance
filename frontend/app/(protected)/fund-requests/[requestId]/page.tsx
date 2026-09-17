@@ -31,6 +31,8 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
 
   // Success modal
   const [successModal, setSuccessModal] = useState({ show: false, message: '' });
+  
+  const [showAttachment, setShowAttachment] = useState(false);
 
   const fetchDetail = async () => {
     try {
@@ -70,12 +72,16 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
       setSuccessModal({
         show: true,
         message: approvalAction === 'Approved'
-          ? 'Pengajuan dana berhasil disetujui!'
-          : 'Pengajuan dana telah ditolak.',
+          ? 'Pengajuan berhasil disetujui.'
+          : 'Pengajuan telah ditolak.',
       });
       fetchDetail();
+      
+      setTimeout(() => {
+        setSuccessModal({ show: false, message: '' });
+      }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan');
+      setErrorMsg(err.message || 'Terjadi kesalahan');
     } finally {
       setIsSubmitting(false);
     }
@@ -229,10 +235,23 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
           {data.attachment && (
             <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lampiran</h3>
-              <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
-                <span className="material-symbols-outlined text-slate-400">attachment</span>
-                <span className="text-sm text-slate-700 truncate">{data.attachment}</span>
-              </div>
+              <button
+                onClick={() => setShowAttachment(true)}
+                type="button"
+                className="w-full flex items-center justify-between bg-slate-50 border border-slate-100 rounded-lg p-3 hover:border-primary/30 hover:bg-blue-50/50 transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-10 h-10 rounded bg-white flex items-center justify-center border border-slate-200 text-slate-400 group-hover:text-primary transition-colors shrink-0">
+                    <span className="material-symbols-outlined">description</span>
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 truncate group-hover:text-primary transition-colors">
+                    {data.attachment.split('/').pop() || 'Lihat Lampiran'}
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors shrink-0">
+                  visibility
+                </span>
+              </button>
             </div>
           )}
         </div>
@@ -309,19 +328,90 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
-                <span className="material-symbols-outlined text-3xl">check_circle</span>
+              <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+                <span className="material-symbols-outlined" style={{ fontSize: '40px' }}>check_circle</span>
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Berhasil</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{successModal.message}</p>
-              <div className="pt-2">
-                <button
-                  onClick={() => setSuccessModal({ show: false, message: '' })}
-                  className="w-full py-2.5 px-4 rounded-xl text-white font-semibold shadow-sm transition-colors cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
+              <p className="text-sm text-slate-500 leading-relaxed mb-2">{successModal.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorMsg && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
+            <p className="text-sm text-slate-500 mb-6">{errorMsg}</p>
+            <button
+              onClick={() => setErrorMsg('')}
+              className="w-full py-2.5 bg-primary text-white font-semibold rounded-xl hover:brightness-110 transition-colors cursor-pointer"
+            >
+              Mengerti
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment Preview Modal */}
+      {showAttachment && data?.attachment && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <span className="material-symbols-outlined text-[18px]">visibility</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{data.attachment.split('/').pop()}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={`http://127.0.0.1:8000/storage/${data.attachment}`}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                  title="Download"
                 >
-                  Mengerti
+                  <span className="material-symbols-outlined text-[20px]">download</span>
+                </a>
+                <button
+                  onClick={() => setShowAttachment(false)}
+                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                  title="Tutup"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
                 </button>
               </div>
+            </div>
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-slate-50 relative">
+              {data.attachment.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ? (
+                <img
+                  src={`http://127.0.0.1:8000/storage/${data.attachment}`}
+                  alt="Attachment Preview"
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm"
+                />
+              ) : data.attachment.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={`http://127.0.0.1:8000/storage/${data.attachment}`}
+                  className="w-full h-[70vh] rounded-lg border border-slate-200 bg-white"
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <span className="material-symbols-outlined text-slate-300 text-[64px] mb-4">description</span>
+                  <p className="text-slate-500">Preview tidak tersedia untuk tipe file ini.</p>
+                  <a href={`http://127.0.0.1:8000/storage/${data.attachment}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary mt-2 inline-block hover:underline">Download File</a>
+                </div>
+              )}
             </div>
           </div>
         </div>

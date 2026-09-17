@@ -165,14 +165,14 @@ export default function InvoicesPage() {
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
               download
             </span>
-            Export
+            Cetak Laporan
           </button>
           <Link href="/invoices/new-invoice">
             <button className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                 add
               </span>
-              Create Invoice
+              Buat Invoice
             </button>
           </Link>
         </div>
