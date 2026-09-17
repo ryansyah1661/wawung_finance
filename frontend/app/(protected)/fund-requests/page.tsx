@@ -92,18 +92,41 @@ export default function FundRequestsPage() {
 
   const handleExport = () => {
     import("xlsx").then((XLSX) => {
-      const worksheet = XLSX.utils.json_to_sheet(
-        requests.map((r) => ({
-          ID: r.id,
-          Date: r.requestDate || r.date || "",
-          Purpose: r.purpose || "",
-          Amount: r.amount || 0,
+      // Menggunakan data yang sudah di-filter (filteredRequests) agar yang terexport sesuai filter yang aktif
+      const exportData = filteredRequests.map((r) => {
+        // Ambil tanggal dari need_date atau created_at
+        const rawDate = r.need_date || r.created_at;
+        const formattedDate = rawDate
+          ? new Date(rawDate).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "-";
+
+        return {
+          "No. Pengajuan": r.request_number || `#${r.id}`,
+          Tanggal: formattedDate,
+          Pemohon: r.applicant_name || r.requester || "-",
+          Departemen: r.department || "-",
+          Keperluan: r.purpose || "-",
+          "Jumlah (Rp)": r.amount || 0,
           Status: r.status || "Pending",
-        })),
-      );
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "FundRequests");
-      XLSX.writeFile(workbook, "fund_requests.xlsx");
+
+      // Nama Sheet di dalam file Excel
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Laporan Pengajuan Dana",
+      );
+
+      // Nama File Excel saat di-download
+      XLSX.writeFile(workbook, "Laporan_Pengajuan_Dana.xlsx");
     });
   };
 
@@ -251,7 +274,7 @@ export default function FundRequestsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>Semua Status</option>
+            <option value="All Status">Semua Status</option>
             <option>Pending</option>
             <option>Approved</option>
             <option>Rejected</option>
@@ -266,7 +289,7 @@ export default function FundRequestsPage() {
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>Semua Departemen</option>
+            <option value="All Departments">Semua Departemen</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.name}>
                 {dept.name}

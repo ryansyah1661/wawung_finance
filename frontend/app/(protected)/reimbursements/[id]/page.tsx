@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-function formatRupiah(amount: number | string) {
+function formatRupiah(amount: number | string | undefined | null) {
+  if (amount === undefined || amount === null) return 'Rp 0';
   const num = typeof amount === 'string' ? parseInt(amount.replace(/\D/g, '') || '0', 10) : amount;
   return `Rp ${num.toLocaleString('id-ID')}`;
 }
@@ -55,9 +56,9 @@ export default function ReimbursementDetail() {
 
     try {
       setIsSubmitting(true);
-      const res = await fetch(`/api/reimbursements/${id}`, {
+      const res = await fetch(`/api/reimbursements/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
           status: confirmAction,
           approvalNote: approvalNote,

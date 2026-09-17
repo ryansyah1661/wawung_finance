@@ -22,6 +22,7 @@ export default function ReimbursementsPage() {
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
 
   const [requests, setRequests] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,13 +31,23 @@ export default function ReimbursementsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await fetch('/api/reimbursements');
+      
+      const [res, deptRes] = await Promise.all([
+        fetch('/api/reimbursements'),
+        fetch('/api/categories?type=departments')
+      ]);
+      
       if (!res.ok) throw new Error('Gagal mengambil data dari server');
 
       const result = await res.json();
       // Menangani format response { success: true, data: [...] }
       const listData = Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []);
       setRequests(listData);
+
+      if (deptRes.ok) {
+        const deptData = await deptRes.json();
+        setDepartments(deptData.data || []);
+      }
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat memuat data');
       setRequests([]);
@@ -122,11 +133,11 @@ export default function ReimbursementsPage() {
             className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
-            Export
+            Cetak Laporan
           </button>
           <Link href="/reimbursements/new-reimbursement" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-            New Reimbursement
+            Ajukan Reimburse
           </Link>
         </div>
       </div>
@@ -181,7 +192,7 @@ export default function ReimbursementsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>All Status</option>
+            <option value="All Status">Semua Status</option>
             <option>Pending</option>
             <option>Approved</option>
             <option>Rejected</option>
@@ -194,13 +205,10 @@ export default function ReimbursementsPage() {
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option>All Departments</option>
-            <option>Sales</option>
-            <option>Marketing</option>
-            <option>Operations</option>
-            <option>Finance</option>
-            <option>HR</option>
-            <option>IT Project</option>
+            <option value="All Departments">Semua Departments</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.name}>{dept.name}</option>
+            ))}
           </select>
         </div>
       </div>

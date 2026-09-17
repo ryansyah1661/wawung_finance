@@ -13,7 +13,7 @@ export default function NewReimbursementPage() {
   const [category, setCategory] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [attachment, setAttachment] = useState<{ name: string; size: number; type: string; dataUrl: string } | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [validationError, setValidationError] = useState('');
   const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
 
@@ -43,16 +43,7 @@ export default function NewReimbursementPage() {
         setValidationError('Ukuran file maksimal adalah 5MB.');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setAttachment({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          dataUrl: ev.target?.result as string,
-        });
-      };
-      reader.readAsDataURL(file);
+      setAttachment(file);
     }
   };
 
@@ -70,20 +61,21 @@ export default function NewReimbursementPage() {
       // Clean angka amount dari format Rupiah
       const cleanAmount = parseInt(amount.replace(/\D/g, ''), 10);
 
-      const payload = {
-        date: expenseDate,
-        description: description,
-        category: category,
-        amount: cleanAmount,
-        purpose: purpose,
-        attachment: attachment,
-      };
+      const formData = new FormData();
+      formData.append('user_name', 'Ryan Syah');
+      formData.append('department', 'Engineering');
+      formData.append('date', expenseDate);
+      formData.append('description', description);
+      formData.append('amount', cleanAmount.toString());
+      if (attachment) {
+        formData.append('proof_file', attachment);
+      }
 
       // 2. Kirim Data Pengajuan Baru ke API
       const res = await fetch('/api/reimbursements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { 'Accept': 'application/json' },
+        body: formData,
       });
 
       if (!res.ok) {
