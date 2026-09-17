@@ -221,7 +221,7 @@ export default function ReimbursementsPage() {
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="p-3">ID</th>
                 <th className="p-3">Tanggal</th>
-                <th className="p-3">Karyawan</th>
+                <th className="p-3">Pemohon</th>
                 <th className="p-3">Departemen</th>
                 <th className="p-3">Deskripsi</th>
                 <th className="p-3 text-right">Jumlah</th>

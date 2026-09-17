@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -17,6 +17,7 @@ export default function InputTransactionPage() {
   const initialType = (searchParams.get('type') as TransactionType) || 'expense';
 
   const [type, setType] = useState<TransactionType>(initialType);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -234,27 +235,44 @@ export default function InputTransactionPage() {
 
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lampiran (Opsional)</label>
-          <label className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer">
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              accept=".png,.jpg,.jpeg,.pdf"
-            />
-            {file ? (
-              <>
-                <span className="material-symbols-outlined text-emerald-500 text-[28px]">check_circle</span>
-                <p className="text-sm text-slate-700 font-medium">{file.name}</p>
-                <p className="text-xs text-slate-400">Klik untuk mengganti file</p>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-slate-400 text-[28px]">upload_file</span>
-                <p className="text-sm text-slate-500">Klik untuk upload atau drag & drop</p>
-                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
-              </>
-            )}
-          </label>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            accept=".png,.jpg,.jpeg,.pdf"
+          />
+          {file ? (
+            <div className="relative border border-slate-200 rounded-lg p-3 flex items-center gap-4 bg-slate-50">
+              {file.type.startsWith('image/') ? (
+                <img src={URL.createObjectURL(file)} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-slate-200" />
+              ) : (
+                <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-lg border border-slate-200 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[32px]">picture_as_pdf</span>
+                </div>
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+                <p className="text-xs text-slate-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB • Siap diupload</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+          ) : (
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-slate-400 text-[28px]">upload_file</span>
+              <p className="text-sm text-slate-500">Klik untuk upload atau drag & drop</p>
+              <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 5MB</p>
+            </div>
+          )}
         </div>
 
       </div>

@@ -56,7 +56,12 @@ export default function NewInventoryItemPage() {
         }
       });
       
-      setSavedCode(res.data.code);
+      const code = res.data.code;
+      setInfoModal({ show: true, title: 'Berhasil!', message: 'Barang berhasil ditambahkan ke inventaris.', type: 'success' });
+      setTimeout(() => {
+        setInfoModal({ show: false, title: '', message: '', type: 'success' });
+        setSavedCode(code);
+      }, 1500);
     } catch (e: any) {
       setInfoModal({ show: true, title: 'Error', message: 'Terjadi kesalahan saat menyimpan data ke server.', type: 'warning' });
     }
@@ -66,7 +71,11 @@ export default function NewInventoryItemPage() {
     // Fetch categories from API
     api.get('/categories')
       .then(res => {
-        const cats = res.data.filter((c: any) => c.status === 'active' && c.type === 'categories');
+        const responseData = res.data?.data || res.data;
+        const cats = Array.isArray(responseData) 
+          ? responseData.filter((c: any) => c.status === 'active' && c.type === 'categories')
+          : [];
+        
         if (cats.length > 0) setAvailableCategories(cats);
         else setAvailableCategories([{name: 'Elektronik'}, {name: 'Furniture'}, {name: 'ATK'}]);
       })
@@ -81,7 +90,7 @@ export default function NewInventoryItemPage() {
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(detailUrl)}`;
 
     return (
-      <div className="max-w-[600px] mx-auto space-y-6">
+      <div className="max-w-150 mx-auto space-y-6">
         <div className="text-center space-y-2">
           <span className="material-symbols-outlined text-emerald-500 text-[40px]">check_circle</span>
           <h2 className="text-2xl font-bold text-slate-900">Barang Berhasil Ditambahkan</h2>
@@ -141,7 +150,7 @@ export default function NewInventoryItemPage() {
   }
 
   return (
-    <div className="max-w-[800px] mx-auto space-y-6">
+    <div className="max-w-200 mx-auto space-y-6">
 
       {/* Page Header */}
       <div className="flex items-center gap-3">
@@ -333,7 +342,7 @@ export default function NewInventoryItemPage() {
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
         <span className="material-symbols-outlined text-blue-600 text-[20px]">qr_code_2</span>
         <p className="text-sm text-blue-800">
-          Setelah disimpan, QR code otomatis dibuat untuk barang ini — siap dicetak dan ditempelkan.
+          Setelah disimpan, QR code otomatis dibuat untuk barang ini, siap dicetak dan ditempelkan.
         </p>
       </div>
 
@@ -355,7 +364,7 @@ export default function NewInventoryItemPage() {
 
       {/* Info/Warning Modal */}
       {infoModal.show && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 text-center space-y-4">
               <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
@@ -383,7 +392,6 @@ export default function NewInventoryItemPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

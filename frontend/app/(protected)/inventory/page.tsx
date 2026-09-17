@@ -149,7 +149,7 @@ export default function InventoryPage() {
         <div className="flex gap-2">
           <button onClick={handleExport} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
-            Export
+            Cetak Laporan
           </button>
           <Link href="/inventory/new-inventory" className="bg-primary text-white hover:brightness-110 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm">
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
@@ -200,7 +200,7 @@ export default function InventoryPage() {
 
       {/* Filter Bar */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-50">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
           <input
             type="text"
@@ -361,7 +361,7 @@ export default function InventoryPage() {
 
       {/* Delete Confirm Modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
@@ -386,7 +386,7 @@ export default function InventoryPage() {
 
       {/* Info/Success Modal */}
       {infoModal.show && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center space-y-4">
               <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${infoModal.type === 'success' ? 'bg-emerald-100 text-emerald-600' :

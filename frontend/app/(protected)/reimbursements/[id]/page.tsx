@@ -39,7 +39,7 @@ export default function ReimbursementDetail() {
         const res = await fetch(`/api/reimbursements/${id}`);
         if (!res.ok) throw new Error('Data tidak ditemukan');
         const data = await res.json();
-        setRequestData(data);
+        setRequestData(data.data || data);
       } catch (err) {
         setRequestData(null);
       } finally {
@@ -68,7 +68,7 @@ export default function ReimbursementDetail() {
       if (!res.ok) throw new Error('Gagal memperbarui status pengajuan');
 
       const updatedData = await res.json();
-      setRequestData(updatedData);
+      setRequestData(updatedData.data || updatedData);
       setSuccessMessage(`Pengajuan berhasil di-${confirmAction.toLowerCase()}!`);
       setConfirmAction(null);
       setShowSuccess(true);
@@ -96,7 +96,7 @@ export default function ReimbursementDetail() {
   }
 
   const status = STATUS_CONFIG[requestData.status?.toLowerCase()] || STATUS_CONFIG.pending;
-  const requesterName = requestData.requester || requestData.employee || 'User';
+  const requesterName = requestData.user_name || requestData.requester || requestData.employee || 'User';
   const requesterInitials = requesterName.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
 
   return (
@@ -106,8 +106,8 @@ export default function ReimbursementDetail() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">Detail Reimbursement #{requestData.id}</h2>
-            <div className={`px-2.5 py-1 rounded-md border ${status.bg} ${status.text} flex items-center gap-1.5 shadow-sm`}>
+            <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">Detail Reimbursement {requestData.request_id ? `#${requestData.request_id}` : `#${requestData.id}`}</h2>
+            <div className={`px-2.5 py-1 rounded-md border ${status.bg} border-${status.text.replace('text-', '')}/20 ${status.text} flex items-center gap-1.5 shadow-sm`}>
               <span className="material-symbols-outlined text-[14px]">{status.icon}</span>
               <span className="text-[11px] font-bold uppercase tracking-wider">{status.label}</span>
             </div>
@@ -140,17 +140,13 @@ export default function ReimbursementDetail() {
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-              <div>
+              <div className="col-span-full">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nomor Pengajuan</p>
-                <p className="font-mono text-sm font-medium text-slate-900">{requestData.id}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kategori</p>
-                <p className="text-sm text-slate-900 font-medium">{requestData.category || '-'}</p>
+                <p className="font-mono text-sm font-medium text-slate-900">{requestData.request_id || requestData.id}</p>
               </div>
 
               <div className="col-span-full">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Karyawan</p>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pemohon</p>
                 <div className="flex items-center gap-3 mt-1">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs uppercase">
                     {requesterInitials}
@@ -184,44 +180,29 @@ export default function ReimbursementDetail() {
               <span className="material-symbols-outlined text-primary text-[20px]">attachment</span>
               Bukti / Nota
             </h3>
-            {requestData.attachment ? (
+            {requestData.proof_file ? (
               <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50 group hover:border-primary/50 transition-colors">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
-                    <span className="material-symbols-outlined text-[20px]">image</span>
+                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm overflow-hidden">
+                    {requestData.proof_file.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                      <img src={`http://127.0.0.1:8000/storage/${requestData.proof_file}`} alt="preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                    )}
                   </div>
                   <div>
-                    <p className="text-sm text-slate-900 font-medium group-hover:text-primary transition-colors">{requestData.attachment.name || 'Dokumen Terlampir'}</p>
+                    <p className="text-sm text-slate-900 font-medium group-hover:text-primary transition-colors">{requestData.proof_file.split('/').pop() || 'Dokumen Terlampir'}</p>
                     <p className="text-xs text-slate-500">Uploaded on {requestData.date || '-'}</p>
                   </div>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => {
-                      if (requestData.attachment?.dataUrl) {
-                        setShowPreview(true);
-                      } else {
-                        alert('Preview tidak tersedia untuk file ini.');
-                      }
+                      window.open(`http://127.0.0.1:8000/storage/${requestData.proof_file}`, '_blank');
                     }}
-                    className="p-2 text-slate-400 hover:text-primary hover:bg-white rounded-lg transition-colors cursor-pointer shadow-sm" title="Preview"
+                    className="p-2 text-slate-400 hover:text-primary hover:bg-white rounded-lg transition-colors cursor-pointer shadow-sm" title="Preview / Download"
                   >
-                    <span className="material-symbols-outlined text-[18px]">visibility</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (requestData.attachment?.dataUrl) {
-                        const link = document.createElement('a');
-                        link.href = requestData.attachment.dataUrl;
-                        link.download = requestData.attachment.name || 'attachment';
-                        link.click();
-                      } else {
-                        alert('Download tidak tersedia untuk file ini.');
-                      }
-                    }}
-                    className="p-2 text-slate-400 hover:text-primary hover:bg-white rounded-lg transition-colors cursor-pointer shadow-sm" title="Download"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">download</span>
+                    <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                   </button>
                 </div>
               </div>

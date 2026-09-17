@@ -220,26 +220,37 @@ export default function NewFundRequestPage() {
             className="hidden"
             accept=".png,.jpg,.jpeg,.pdf"
           />
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50 hover:bg-slate-100"
-          >
-            {attachment ? (
-              <>
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-1">
-                  <span className="material-symbols-outlined text-[24px]">task</span>
+          {attachment ? (
+            <div className="relative border border-slate-200 rounded-lg p-3 flex items-center gap-4 bg-slate-50">
+              {attachment.type.startsWith('image/') ? (
+                <img src={URL.createObjectURL(attachment)} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-slate-200" />
+              ) : (
+                <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-lg border border-slate-200 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[32px]">picture_as_pdf</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-900">{attachment.name}</p>
-                <p className="text-xs text-slate-500">{(attachment.size / 1024 / 1024).toFixed(2)} MB • Klik untuk mengganti file</p>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-slate-400 text-[28px]">attachment</span>
-                <p className="text-sm text-slate-600 font-medium">Klik untuk upload dokumen pendukung</p>
-                <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 2MB</p>
-              </>
-            )}
-          </div>
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900 truncate">{attachment.name}</p>
+                <p className="text-xs text-slate-500 mt-1">{(attachment.size / 1024 / 1024).toFixed(2)} MB • Siap diupload</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+          ) : (
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-slate-400 text-[28px]">attachment</span>
+              <p className="text-sm text-slate-500 font-medium">Klik untuk upload dokumen pendukung</p>
+              <p className="text-xs text-slate-400">PNG, JPG, PDF maksimal 2MB</p>
+            </div>
+          )}
         </div>
 
         {/* Info Box */}
