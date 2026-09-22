@@ -1,15 +1,20 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 export default function TopNav() {
+  const router = useRouter();
   const [userData, setUserData] = useState({ name: '', role: '' });
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   React.useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await api.get('/users/1');
+        const userId = localStorage.getItem('user_id') || '2'; // Default to ID 2 (Ryan Syah)
+        const res = await api.get(`/users/${userId}`);
         if (res.data) {
           setUserData({
             name: res.data.name || '',
@@ -28,7 +33,13 @@ export default function TopNav() {
     return () => window.removeEventListener('userProfileUpdated', handleUpdate);
   }, []);
 
-  // Inisial nama pengguna (misal: AW untuk Ahmad Wijaya)
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    localStorage.removeItem('user_id');
+    router.push('/login');
+  };
+
+  // Inisial nama pengguna
   const userName = userData.name;
   const userInitials = userName
     .split(' ')
@@ -61,16 +72,61 @@ export default function TopNav() {
 
         <div className="h-6 w-px bg-slate-200"></div>
 
-        {/* User Profile Avatar */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shadow-sm shrink-0">
-            {userInitials || 'RS'}
+        {/* User Profile Avatar with Dropdown */}
+        <div className="relative">
+          <div 
+            className="flex items-center gap-3 cursor-pointer p-1 pr-2 rounded-lg hover:bg-slate-50 transition-colors"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shadow-sm shrink-0">
+              {userInitials || 'RS'}
+            </div>
+
+            <div className="hidden lg:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-800">{userName || 'Ryan Syah'}</span>
+              <span className="text-[10px] text-slate-500 font-medium">{userData.role || 'Specialist IT'}</span>
+            </div>
+            
+            <span className="material-symbols-outlined text-slate-400 text-[18px]">
+              expand_more
+            </span>
           </div>
 
-          <div className="hidden lg:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-800">{userName}</span>
-            <span className="text-[10px] text-slate-500 font-medium">{userData.role}</span>
-          </div>
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsDropdownOpen(false)}
+              ></div>
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                <Link 
+                  href="/settings" 
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <span className="material-symbols-outlined text-[18px]">person</span>
+                  Edit Profile
+                </Link>
+                <Link 
+                  href="/settings?tab=security" 
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <span className="material-symbols-outlined text-[18px]">lock</span>
+                  Ubah Password
+                </Link>
+                <div className="h-px bg-slate-100 my-1"></div>
+                <button 
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                  onClick={handleLogout}
+                >
+                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                  Logout
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -5,7 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import api from "@/lib/api";
 
-const MENU_GROUPS = [
+type MenuItem = { href: string; label: string; icon: string };
+type MenuGroup = { title: string; roles?: string[]; items: MenuItem[] };
+
+const MENU_GROUPS: MenuGroup[] = [
   {
     title: "DASHBOARD",
     items: [
@@ -31,11 +34,9 @@ const MENU_GROUPS = [
   },
   {
     title: "ADMINISTRATION",
-    roles: ["superadmin"],
     items: [
       { href: "/user-management", label: "User Management", icon: "group" },
       { href: "/activity-log", label: "Activity Log", icon: "history" },
-      { href: "/settings", label: "Settings", icon: "settings" },
     ]
   }
 ];
@@ -47,7 +48,8 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await api.get('/users/1');
+        const userId = localStorage.getItem('user_id') || '2';
+        const res = await api.get(`/users/${userId}`);
         if (res.data && res.data.role) {
           setUserRole(res.data.role);
         }
@@ -55,9 +57,9 @@ export default function Sidebar() {
         console.error("Failed to fetch user in sidebar", e);
       }
     };
-    
+
     fetchUser();
-    
+
     const handleUpdate = () => fetchUser();
     window.addEventListener('userProfileUpdated', handleUpdate);
     return () => window.removeEventListener('userProfileUpdated', handleUpdate);
@@ -75,11 +77,10 @@ export default function Sidebar() {
 
       <div className="flex-1 overflow-y-auto space-y-6 px-2 pb-4">
         {MENU_GROUPS.map((group, index) => {
-          // If group has roles restriction and current user role is not in it, hide group
           if (group.roles && !group.roles.includes(userRole)) {
             return null;
           }
-          
+
           return (
             <div key={index} className="space-y-1">
               {group.title && (

@@ -14,6 +14,7 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState('All Types');
   const [filterCategory, setFilterCategory] = useState('All Categories');
   const [filterDate, setFilterDate] = useState('');
+  const [allTransactions, setAllTransactions] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
@@ -33,19 +34,8 @@ export default function TransactionsPage() {
 
       if (result.success) {
         // Pagination Laravel membungkus list data di result.data.data
-        const dataFromApi = result.data.data;
-
-        // Filter data di sisi frontend
-        const filtered = dataFromApi.filter((t: any) => {
-          const matchSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            String(t.id).toLowerCase().includes(searchQuery.toLowerCase());
-          const matchType = filterType === 'All Types' || t.type?.toLowerCase() === filterType.toLowerCase();
-          const matchCategory = filterCategory === 'All Categories' || t.category === filterCategory;
-          const matchDate = !filterDate || t.date === filterDate;
-          return matchSearch && matchType && matchCategory && matchDate;
-        });
-
-        setTransactions(filtered);
+        const dataFromApi = result.data.data || result.data;
+        setAllTransactions(dataFromApi);
       }
     } catch (error) {
       console.error('Gagal mengambil data:', error);
@@ -56,7 +46,21 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [searchQuery, filterType, filterCategory, filterDate]);
+  }, []); // Hanya dipanggil sekali saat komponen dimount
+
+  useEffect(() => {
+    // Filter data di sisi frontend
+    const filtered = allTransactions.filter((t: any) => {
+      const matchSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(t.id).toLowerCase().includes(searchQuery.toLowerCase());
+      const matchType = filterType === 'All Types' || t.type?.toLowerCase() === filterType.toLowerCase();
+      const matchCategory = filterCategory === 'All Categories' || t.category === filterCategory;
+      const matchDate = !filterDate || t.date === filterDate;
+      return matchSearch && matchType && matchCategory && matchDate;
+    });
+
+    setTransactions(filtered);
+  }, [searchQuery, filterType, filterCategory, filterDate, allTransactions]);
 
   // Fetch categories & accounts dari Master Data API
   useEffect(() => {
