@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 type TransactionType = 'income' | 'expense';
 
