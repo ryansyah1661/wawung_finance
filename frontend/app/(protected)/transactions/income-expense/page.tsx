@@ -42,19 +42,15 @@ export default function InputTransactionPage() {
         setLoadingMaster(true);
         // Memanggil API dengan query parameter type dan status active
         const [resCategories, resAccounts] = await Promise.all([
-          fetch('http://localhost:8000/api/categories?type=categories&status=active'),
-          fetch('http://localhost:8000/api/categories?type=accounts&status=active')
+          api.get('/categories?type=categories&status=active').catch(() => ({ data: [] })),
+          api.get('/categories?type=accounts&status=active').catch(() => ({ data: [] }))
         ]);
 
-        const catData = await resCategories.json();
-        const accData = await resAccounts.json();
+        const catData = resCategories.data || [];
+        const accData = resAccounts.data || [];
 
-        if (catData.success || catData.data) {
-          setCategoriesList(catData.data || catData);
-        }
-        if (accData.success || accData.data) {
-          setAccountsList(accData.data || accData);
-        }
+        setCategoriesList(Array.isArray(catData) ? catData : catData.data || []);
+        setAccountsList(Array.isArray(accData) ? accData : accData.data || []);
       } catch (error) {
         console.error('Gagal mengambil Master Data:', error);
       } finally {
@@ -76,24 +72,17 @@ export default function InputTransactionPage() {
       setIsSubmitting(true);
       const numericAmount = parseInt(amount.replace(/\D/g, '') || '0', 10);
 
-      const res = await fetch('http://localhost:8000/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          date,
-          description,
-          category,
-          account,
-          amount: numericAmount,
-          type,
-          notes,
-        }),
+      const res = await api.post('/transactions', {
+        date,
+        description,
+        category,
+        account,
+        amount: numericAmount,
+        type,
+        notes,
       });
 
-      if (res.ok) {
+      if (res.data) {
         setShowSuccessModal(true);
         setTimeout(() => {
           router.push('/transactions');

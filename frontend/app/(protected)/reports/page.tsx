@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const REPORT_TYPES = [
   {
@@ -341,8 +342,13 @@ export default function ReportsPage() {
 
           <div className="flex-1 relative min-h-55 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] bg-size[20px_20px] rounded-lg p-4 flex items-end gap-6">
             {isLoading ? (
-              <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">
-                Memuat data grafik...
+              <div className="w-full h-full flex items-end justify-center gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="flex-1 flex items-end justify-center gap-1 h-full">
+                    <Skeleton className="w-full h-[60%] rounded-t-sm" />
+                    <Skeleton className="w-full h-[40%] rounded-t-sm" />
+                  </div>
+                ))}
               </div>
             ) : (
               chartData.map((d) => (

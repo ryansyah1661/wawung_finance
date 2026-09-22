@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 const STATUS_CONFIG: Record<
   string,
@@ -317,11 +318,7 @@ export default function FundRequestsPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="p-6 text-center text-slate-500">
-                    Memuat data...
-                  </td>
-                </tr>
+                <TableSkeleton columns={8} />
               ) : errorMsg ? (
                 <tr>
                   <td

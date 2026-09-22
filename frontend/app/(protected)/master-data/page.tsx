@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 type TabKey = 'accounts' | 'categories' | 'departments' | 'vendors';
 
@@ -152,7 +153,7 @@ export default function MasterDataPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-500">Memuat data...</td></tr>
+                <TableSkeleton columns={4} />
               ) : items.length === 0 ? (
                 <tr><td colSpan={4} className="p-8 text-center text-slate-500">Belum ada data di kategori ini.</td></tr>
               ) : items.map((item, index) => (

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import api from '@/lib/api';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 interface User {
   id: number;
@@ -34,10 +36,9 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('http://localhost:8000/api/users');
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
+      const res = await api.get('/users');
+      if (res.data) {
+        setUsers(res.data);
       }
     } catch (error) {
       console.error('Gagal mengambil data user:', error);
@@ -59,18 +60,13 @@ export default function UserManagementPage() {
     if (!userToDelete) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/users/${userToDelete.id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setUsers(users.filter((user) => user.id !== userToDelete.id));
-        setIsDeleteModalOpen(false);
-        setUserToDelete(null);
-      } else {
-        alert('Gagal menghapus user');
-      }
+      await api.delete(`/users/${userToDelete.id}`);
+      setUsers(users.filter((user) => user.id !== userToDelete.id));
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
     } catch (error) {
       console.error('Error deleting user:', error);
+      alert('Gagal menghapus user');
     } finally {
       setIsSubmitting(false);
     }
@@ -86,20 +82,13 @@ export default function UserManagementPage() {
     if (!editUser) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/users/${editUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editUser),
-      });
-      if (res.ok) {
-        setIsEditModalOpen(false);
-        setEditUser(null);
-        fetchUsers();
-      } else {
-        alert('Gagal mengupdate user');
-      }
+      await api.put(`/users/${editUser.id}`, editUser);
+      setIsEditModalOpen(false);
+      setEditUser(null);
+      fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
+      alert('Gagal mengupdate user');
     } finally {
       setIsSubmitting(false);
     }
@@ -126,20 +115,13 @@ export default function UserManagementPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8000/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newUser, password: 'password123' }),
-      });
-      if (res.ok) {
-        setIsAddModalOpen(false);
-        setNewUser({ name: '', email: '', role: 'pm', department: '' });
-        fetchUsers();
-      } else {
-        alert('Gagal menambahkan user');
-      }
+      await api.post('/users', { ...newUser, password: 'password123' });
+      setIsAddModalOpen(false);
+      setNewUser({ name: '', email: '', role: 'pm', department: '' });
+      fetchUsers();
     } catch (error) {
-      console.error('Error adding user:', error);
+      console.error('Error adding user', error);
+      alert('Gagal menambahkan user');
     } finally {
       setIsSubmitting(false);
     }
@@ -251,11 +233,7 @@ export default function UserManagementPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="p-4 text-center text-slate-400">
-                    Memuat data user...
-                  </td>
-                </tr>
+                <TableSkeleton columns={6} />
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-4 text-center text-slate-400">

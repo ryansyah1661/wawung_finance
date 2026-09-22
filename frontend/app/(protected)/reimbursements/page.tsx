@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   pending: { label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -231,14 +232,7 @@ export default function ReimbursementsPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    <div className="flex justify-center items-center gap-2">
-                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                      Memuat data reimbursement...
-                    </div>
-                  </td>
-                </tr>
+                <TableSkeleton columns={8} />
               ) : error ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center text-rose-500">

@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import api from '@/lib/api';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 type TransactionType = 'income' | 'expense';
 
@@ -29,8 +31,8 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/transactions');
-      const result = await res.json();
+      const res = await api.get('/transactions');
+      const result = res.data;
 
       if (result.success) {
         // Pagination Laravel membungkus list data di result.data.data
@@ -67,17 +69,15 @@ export default function TransactionsPage() {
     const fetchMasterData = async () => {
       try {
         const [catRes, accRes] = await Promise.all([
-          fetch('http://localhost:8000/api/categories?type=categories&status=active'),
-          fetch('http://localhost:8000/api/categories?type=accounts&status=active'),
+          api.get('/categories?type=categories&status=active').catch(() => ({ data: [] })),
+          api.get('/categories?type=accounts&status=active').catch(() => ({ data: [] })),
         ]);
-        if (catRes.ok) {
-          const catData = await catRes.json();
-          setCategories(Array.isArray(catData) ? catData : catData.data || []);
-        }
-        if (accRes.ok) {
-          const accData = await accRes.json();
-          setAccounts(Array.isArray(accData) ? accData : accData.data || []);
-        }
+        
+        const catData = catRes.data || [];
+        setCategories(Array.isArray(catData) ? catData : catData.data || []);
+        
+        const accData = accRes.data || [];
+        setAccounts(Array.isArray(accData) ? accData : accData.data || []);
       } catch (error) {
         console.error('Gagal mengambil master data:', error);
       }
@@ -89,16 +89,10 @@ export default function TransactionsPage() {
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/transactions/${deleteConfirm.id}`, {
-        method: 'DELETE',
-        headers: { 'Accept': 'application/json' },
-      });
-
-      if (res.ok) {
-        setDeleteConfirm(null);
-        fetchTransactions();
-        setInfoModal({ show: true, message: 'Transaksi berhasil dihapus!', title: 'Sukses', type: 'success' });
-      }
+      await api.delete(`/transactions/${deleteConfirm.id}`);
+      setDeleteConfirm(null);
+      fetchTransactions();
+      setInfoModal({ show: true, message: 'Transaksi berhasil dihapus!', title: 'Sukses', type: 'success' });
     } catch (error) {
       console.error('Gagal menghapus transaksi:', error);
     }
@@ -108,25 +102,16 @@ export default function TransactionsPage() {
   const handleUpdate = async () => {
     if (!editData) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/transactions/${editData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          date: editData.date,
-          description: editData.description,
-          category: editData.category,
-          account: editData.account,
-          type: editData.type,
-          amount: editData.amount,
-        }),
+      const res = await api.put(`/transactions/${editData.id}`, {
+        date: editData.date,
+        description: editData.description,
+        category: editData.category,
+        account: editData.account,
+        type: editData.type,
+        amount: editData.amount,
       });
 
-      const result = await res.json();
-
-      if (res.ok && result.success) {
+      if (res.data?.success) {
         setEditData(null);
         fetchTransactions();
         setInfoModal({ show: true, message: 'Transaksi berhasil diubah!', title: 'Sukses', type: 'success' });
@@ -259,9 +244,7 @@ export default function TransactionsPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400">Memuat data dari database...</td>
-                </tr>
+                <TableSkeleton columns={7} />
               ) : transactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-6 text-center text-slate-400">Tidak ada transaksi ditemukan.</td>

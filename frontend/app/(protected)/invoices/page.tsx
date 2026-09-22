@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 interface InvoiceItem {
   id?: string;
@@ -292,11 +293,7 @@ export default function InvoicesPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
-                    Memuat data invoice...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} />
               ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-500">

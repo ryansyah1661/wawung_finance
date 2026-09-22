@@ -39,7 +39,8 @@ export default function InvoiceDetail() {
   useEffect(() => {
     const fetchRole = async () => {
       try {
-        const res = await api.get('/users/1');
+        const userId = localStorage.getItem('user_id') || '2';
+        const res = await api.get(`/users/${userId}`);
         if (res.data?.role) setUserRole(res.data.role);
       } catch (e) {
         console.error('Gagal fetch role', e);
@@ -51,10 +52,8 @@ export default function InvoiceDetail() {
   const fetchInvoiceDetail = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/invoices/${id}`);
-      if (!res.ok) throw new Error('Data tidak ditemukan');
-      const raw = await res.json();
-      const invoiceData = raw?.data || raw;
+      const res = await api.get(`/invoices/${id}`);
+      const invoiceData = res.data?.data || res.data;
       setInvoice(invoiceData);
     } catch (err) {
       setInvoice(null);

@@ -99,31 +99,45 @@ export default function TopNav() {
                 className="fixed inset-0 z-40" 
                 onClick={() => setIsDropdownOpen(false)}
               ></div>
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden py-1">
-                <Link 
-                  href="/settings" 
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <span className="material-symbols-outlined text-[18px]">person</span>
-                  Edit Profile
-                </Link>
-                <Link 
-                  href="/settings?tab=security" 
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <span className="material-symbols-outlined text-[18px]">lock</span>
-                  Ubah Password
-                </Link>
-                <div className="h-px bg-slate-100 my-1"></div>
-                <button 
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
-                  onClick={handleLogout}
-                >
-                  <span className="material-symbols-outlined text-[18px]">logout</span>
-                  Logout
-                </button>
+              <div className="absolute right-0 mt-3 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                
+                {/* Header Dropdown */}
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm shadow-sm shrink-0">
+                    {userInitials || 'RS'}
+                  </div>
+                  <div className="flex flex-col text-left overflow-hidden">
+                    <span className="text-sm font-bold text-slate-900 truncate">{userName || 'Ryan Syah'}</span>
+                    <span className="text-[11px] text-slate-500 font-medium truncate">{userData.role || 'Specialist IT'}</span>
+                  </div>
+                </div>
+
+                <div className="p-2">
+                  <Link 
+                    href="/settings" 
+                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600">
+                      <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
+                    </div>
+                    Pengaturan Profil
+                  </Link>
+                </div>
+
+                <div className="h-px bg-slate-100 mx-2"></div>
+                
+                <div className="p-2">
+                  <button 
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
+                    onClick={handleLogout}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                    </div>
+                    Keluar
+                  </button>
+                </div>
               </div>
             </>
           )}

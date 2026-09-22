@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LogItem {
   id: number;
@@ -52,11 +54,10 @@ export default function ActivityLogPage() {
       if (searchQuery) params.append('search', searchQuery);
       if (filterDate) params.append('date', filterDate);
 
-      const res = await fetch(`http://localhost:8000/api/activity-logs?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.data || []);
-        setTotalLogs(data.total || 0);
+      const res = await api.get(`/activity-logs?${params.toString()}`);
+      if (res.data) {
+        setLogs(res.data.data || []);
+        setTotalLogs(res.data.total || 0);
       }
     } catch (error) {
       console.error('Error fetching logs:', error);
@@ -130,7 +131,17 @@ export default function ActivityLogPage() {
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
         <div className="divide-y divide-slate-100">
           {isLoading ? (
-            <div className="p-8 text-center text-slate-400">Memuat riwayat aktivitas...</div>
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+                  <div className="space-y-2 w-full">
+                    <Skeleton className="h-4 w-1/4 rounded" />
+                    <Skeleton className="h-3 w-1/2 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : logs.length === 0 ? (
             <div className="p-8 text-center text-slate-400">Tidak ada riwayat ditemukan.</div>
           ) : (

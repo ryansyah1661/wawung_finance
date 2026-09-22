@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   available: { label: 'Tersedia', bg: 'bg-emerald-50', text: 'text-emerald-700' },
@@ -248,11 +249,7 @@ export default function InventoryPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    Memuat data dari database...
-                  </td>
-                </tr>
+                <TableSkeleton columns={8} />
               ) : filteredInventory.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-500">

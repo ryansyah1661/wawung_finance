@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import api from '@/lib/api';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 
 const AreaChart = dynamic(() => import('recharts').then(m => m.AreaChart), { ssr: false });
 const Area = dynamic(() => import('recharts').then(m => m.Area), { ssr: false });
@@ -33,10 +35,10 @@ export default function SuperadminDashboard() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/users/1');
-        if (res.ok) {
-          const data = await res.json();
-          setUserName(data.name || '');
+        const userId = localStorage.getItem('user_id') || '2';
+        const res = await api.get(`/users/${userId}`);
+        if (res.data) {
+          setUserName(res.data.name || '');
         }
       } catch (e) {
         console.error('Gagal fetch user', e);
@@ -52,16 +54,16 @@ export default function SuperadminDashboard() {
 
         // Fetch paralel dari API Laravel
         const [resTrx, resFR, resRB, resInv] = await Promise.all([
-          fetch('http://localhost:8000/api/transactions'),
-          fetch('http://localhost:8000/api/fund-requests'),
-          fetch('http://localhost:8000/api/reimbursements'),
-          fetch('http://localhost:8000/api/invoices')
+          api.get('/transactions').catch(() => ({ data: [] })),
+          api.get('/fund-requests').catch(() => ({ data: [] })),
+          api.get('/reimbursements').catch(() => ({ data: [] })),
+          api.get('/invoices').catch(() => ({ data: [] }))
         ]);
 
-        const rawTrx = resTrx.ok ? await resTrx.json() : [];
-        const rawFR = resFR.ok ? await resFR.json() : [];
-        const rawRB = resRB.ok ? await resRB.json() : [];
-        const rawInv = resInv.ok ? await resInv.json() : [];
+        const rawTrx = resTrx.data || [];
+        const rawFR = resFR.data || [];
+        const rawRB = resRB.data || [];
+        const rawInv = resInv.data || [];
 
         const transactions = Array.isArray(rawTrx)
           ? rawTrx
@@ -209,16 +211,7 @@ export default function SuperadminDashboard() {
     : [{ name: 'Kosong', amount: 1, fill: '#e2e8f0' }];
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4">
-        <img
-          src="/assets/images/logo-kawung.png"
-          alt="Kawung Finance"
-          className="w-16 h-16 rounded-xl animate-pulse"
-        />
-        <p className="text-slate-500 font-medium text-sm">Memuat data dashboard...</p>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (

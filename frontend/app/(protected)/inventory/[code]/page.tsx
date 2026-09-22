@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 
 const INVENTORY = [
   { code: 'INV-A-001', name: 'Laptop Dell Latitude 5420', category: 'Elektronik', location: 'Gudang Pusat', qty: 8, unit: 'unit', status: 'available', value: 12000000, addedDate: '2023-08-15', notes: 'Kondisi baik, tersedia untuk peminjaman' },
@@ -46,7 +47,11 @@ export default function InventoryDetailPage() {
   }, [code]);
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500">Memuat data barang...</div>;
+    return (
+      <div className="p-8">
+        <PageSkeleton />
+      </div>
+    );
   }
 
   if (!item) {
