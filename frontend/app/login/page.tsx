@@ -1,10 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // Redirect ke dashboard jika sudah login
+  useEffect(() => {
+    const userId = localStorage.getItem('user_id');
+    if (userId) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
   
   // State Form
   const [email, setEmail] = useState('');
@@ -22,20 +31,28 @@ export default function LoginPage() {
     setErrorMessage(null);
 
     try {
-      // Nanti dihubungkan ke backend Laravel (POST /api/login)
-      console.log('Logging in with:', { email, password, rememberMe });
-      
-      setTimeout(() => {
-        setLoading(false);
+      const res = await api.post('/login', { email, password });
+
+      if (res.data?.user) {
+        // Simpan data user ke localStorage
+        const user = res.data.user;
+        localStorage.setItem('user_id', String(user.id));
+        localStorage.setItem('user_name', user.name);
+        localStorage.setItem('user_email', user.email);
+        localStorage.setItem('user_role', user.role);
+        localStorage.setItem('user_department', user.department || '');
+        localStorage.setItem('user_phone', user.phone || '');
+        localStorage.setItem('user_position', user.position || '');
+
         // Pindah route ke Dashboard
         router.push('/dashboard');
-      }, 800);
-
+      }
     } catch (err: any) {
-      setLoading(false);
       setErrorMessage(
         err.response?.data?.message || 'Login gagal, periksa email dan password Anda.'
       );
+    } finally {
+      setLoading(false);
     }
   };
 

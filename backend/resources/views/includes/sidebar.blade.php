@@ -15,63 +15,57 @@
     <!-- Navigation Items -->
     <div class="flex-1 overflow-y-auto px-2 space-y-1">
         <!-- Dashboard -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 text-red-700 font-semibold shadow-xs">
+        <a href="http://localhost:3000/dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 text-red-700 font-semibold shadow-xs">
             <span class="material-symbols-outlined text-xl">grid_view</span>
             <span>Dashboard</span>
         </a>
 
         <!-- Transactions -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/transactions" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">swap_horiz</span>
             <span>Transactions</span>
         </a>
 
         <!-- Fund Requests -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/fund-requests" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">request_quote</span>
             <span>Fund Requests</span>
         </a>
 
         <!-- Reimbursements -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/reimbursements" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">receipt_long</span>
             <span>Reimbursements</span>
         </a>
 
         <!-- Invoices -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/invoices" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">description</span>
             <span>Invoices</span>
         </a>
 
         <!-- Reports -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">bar_chart</span>
             <span>Reports</span>
         </a>
 
         <!-- Master Data -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/master-data" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">database</span>
             <span>Master Data</span>
         </a>
 
         <!-- User Management -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <a href="http://localhost:3000/user-management" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">manage_accounts</span>
             <span>User Management</span>
         </a>
 
-        <!-- Audit Log -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+        <!-- Audit Log / Activity Log -->
+        <a href="http://localhost:3000/activity-log" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <span class="material-symbols-outlined text-xl">history</span>
-            <span>Audit Log</span>
-        </a>
-
-        <!-- Settings -->
-        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
-            <span class="material-symbols-outlined text-xl">settings</span>
-            <span>Settings</span>
+            <span>Activity Log</span>
         </a>
     </div>
 </nav>

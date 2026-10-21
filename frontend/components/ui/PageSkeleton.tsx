@@ -1,7 +1,7 @@
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-export default function PageSkeleton() {
+export function PageSkeleton() {
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -34,3 +34,5 @@ export default function PageSkeleton() {
     </div>
   );
 }
+
+export default PageSkeleton;

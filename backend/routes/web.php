@@ -3,23 +3,22 @@
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 
-// Redirect halaman depan ke login
+// Redirect semua halaman web ke Next.js frontend
 Route::get('/', function () {
-    return redirect()->route('login');
+    return redirect('http://localhost:3000/login');
 });
 
-// Route Autentikasi
-Route::get('/login', [LoginController::class, 'index'])->name('login');
-Route::post('/login', [LoginController::class, 'store']);
+Route::get('/login', function () {
+    return redirect('http://localhost:3000/login');
+})->name('login');
+
+Route::get('/dashboard', function () {
+    return redirect('http://localhost:3000/dashboard');
+})->name('dashboard');
+
+// Logout tetap bisa dari Laravel
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::get('/forgot-password', function () {
-    return 'Halaman Lupa Password';
+    return redirect('http://localhost:3000/login');
 })->name('password.request');
-
-// Route Dashboard (Memerlukan Login)
-Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-});

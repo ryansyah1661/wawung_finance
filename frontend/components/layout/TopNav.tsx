@@ -13,7 +13,8 @@ export default function TopNav() {
   React.useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userId = localStorage.getItem('user_id') || '2'; // Default to ID 2 (Ryan Syah)
+        const userId = localStorage.getItem('user_id');
+        if (!userId) return;
         const res = await api.get(`/users/${userId}`);
         if (res.data) {
           setUserData({
@@ -35,7 +36,14 @@ export default function TopNav() {
 
   const handleLogout = () => {
     setIsDropdownOpen(false);
+    // Bersihkan semua data user dari localStorage
     localStorage.removeItem('user_id');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_department');
+    localStorage.removeItem('user_phone');
+    localStorage.removeItem('user_position');
     router.push('/login');
   };
 
@@ -79,12 +87,12 @@ export default function TopNav() {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shadow-sm shrink-0">
-              {userInitials || 'RS'}
+              {userInitials || 'U'}
             </div>
 
             <div className="hidden lg:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-800">{userName || 'Ryan Syah'}</span>
-              <span className="text-[10px] text-slate-500 font-medium">{userData.role || 'Specialist IT'}</span>
+              <span className="text-xs font-semibold text-slate-800">{userName || 'User'}</span>
+              <span className="text-[10px] text-slate-500 font-medium">{userData.role || '-'}</span>
             </div>
             
             <span className="material-symbols-outlined text-slate-400 text-[18px]">
@@ -104,11 +112,11 @@ export default function TopNav() {
                 {/* Header Dropdown */}
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm shadow-sm shrink-0">
-                    {userInitials || 'RS'}
+                    {userInitials || 'U'}
                   </div>
                   <div className="flex flex-col text-left overflow-hidden">
-                    <span className="text-sm font-bold text-slate-900 truncate">{userName || 'Ryan Syah'}</span>
-                    <span className="text-[11px] text-slate-500 font-medium truncate">{userData.role || 'Specialist IT'}</span>
+                    <span className="text-sm font-bold text-slate-900 truncate">{userName || 'User'}</span>
+                    <span className="text-[11px] text-slate-500 font-medium truncate">{userData.role || '-'}</span>
                   </div>
                 </div>
 
