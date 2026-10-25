@@ -15,7 +15,9 @@ class FundRequest extends Model
         'applicant_name',
         'department',
         'purpose',
+        'description',
         'amount',
+        'items',
         'attachment',
         'status',
         'approval_note',
@@ -24,5 +26,6 @@ class FundRequest extends Model
     protected $casts = [
         'need_date' => 'date',
         'amount'    => 'decimal:2',
+        'items'     => 'array',
     ];
 }

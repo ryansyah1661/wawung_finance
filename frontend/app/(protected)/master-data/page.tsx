@@ -4,13 +4,16 @@ import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 
-type TabKey = 'accounts' | 'categories' | 'departments' | 'vendors';
+type TabKey = 'accounts' | 'categories' | 'inventory_categories' | 'departments' | 'vendors' | 'programs' | 'purposes';
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'accounts', label: 'Akun Bank/Kas', icon: 'account_balance' },
   { key: 'categories', label: 'Kategori Transaksi', icon: 'category' },
+  { key: 'inventory_categories', label: 'Kategori Barang', icon: 'inventory_2' },
   { key: 'departments', label: 'Departemen', icon: 'apartment' },
   { key: 'vendors', label: 'Vendor/Klien', icon: 'storefront' },
+  { key: 'programs', label: 'Program', icon: 'assignment' },
+  { key: 'purposes', label: 'Keperluan', icon: 'task' },
 ];
 
 export default function MasterDataPage() {

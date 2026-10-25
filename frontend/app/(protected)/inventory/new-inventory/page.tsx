@@ -1,5 +1,7 @@
 'use client';
 
+import KawungQrCode from '@/components/KawungQrCode';
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,7 +18,7 @@ export default function NewInventoryItemPage() {
   const [notes, setNotes] = useState('');
   const [savedCode, setSavedCode] = useState<string | null>(null);
   const [photo, setPhoto] = useState<{name: string, dataUrl: string, file?: File} | null>(null);
-  const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<{name: string; detail?: string; code?: string}[]>([]);
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: '', type: 'success' as 'success' | 'warning' | 'info' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -69,19 +71,32 @@ export default function NewInventoryItemPage() {
 
   useEffect(() => {
     // Fetch categories from API
-    api.get('/categories')
+    api.get('/categories?type=inventory_categories,categories&status=active')
       .then(res => {
         const responseData = res.data?.data || res.data;
-        const cats = Array.isArray(responseData) 
-          ? responseData.filter((c: any) => c.status === 'active' && c.type === 'categories')
-          : [];
-        
+        const cats = Array.isArray(responseData) ? responseData : [];
         if (cats.length > 0) setAvailableCategories(cats);
-        else setAvailableCategories([{name: 'Elektronik'}, {name: 'Furniture'}, {name: 'ATK'}]);
+        else setAvailableCategories([
+          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
+          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
+        ]);
+        setAvailableCategories([
+          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
+          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
+        ]);
       })
       .catch(err => {
         console.error(err);
-        setAvailableCategories([{name: 'Elektronik'}, {name: 'Furniture'}, {name: 'ATK'}]);
+        setAvailableCategories([
+          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
+          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
+          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
+        ]);
       });
   }, []);
 
@@ -100,27 +115,18 @@ export default function NewInventoryItemPage() {
         </div>
 
         <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-8 flex flex-col items-center gap-4">
-          <img src={qrImageUrl} alt={`QR Code ${savedCode}`} className="w-56 h-56" />
+          <KawungQrCode value={detailUrl} size={220} downloadFileName={`qr-${savedCode}.png`} showDownloadButton={true} />
           <p className="text-xs text-slate-400 text-center max-w-xs">
             Cetak dan tempelkan QR ini di barang. Scan QR akan membuka halaman detail barang ini.
           </p>
           <div className="flex flex-col gap-3 w-full">
-            <div className="flex gap-3 w-full">
-              <a
-                href={qrImageUrl}
-                download={`qr-${savedCode}.png`}
-                className="flex-1 text-center px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                Download QR
-              </a>
-              <button
-                onClick={() => window.print()}
-                className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-[18px]">print</span>
-                Print
-              </button>
-            </div>
+            <button
+              onClick={() => window.print()}
+              className="w-full px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <span className="material-symbols-outlined text-[18px]">print</span>
+              Print QR
+            </button>
             <button
               onClick={() => router.push('/inventory')}
               className="w-full px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
@@ -186,13 +192,26 @@ export default function NewInventoryItemPage() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
             >
-              <option value="">Pilih kategori...</option>
-              {availableCategories.map((cat, idx) => (
-                <option key={idx} value={cat.name}>{cat.name}</option>
-              ))}
-              <option value="Lainnya">Lainnya</option>
+              <option value="" disabled>Pilih Kategori Barang...</option>
+              <optgroup label="Berdasarkan Masa Pemakaian">
+                {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('masa pemakaian') || c.name?.includes('Pakai')).map((c: any, idx: number) => (
+                  <option key={`mp-${idx}`} value={c.name}>{c.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Berdasarkan Mobilitas">
+                {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('mobilitas') || c.name?.includes('Bergerak')).map((c: any, idx: number) => (
+                  <option key={`mb-${idx}`} value={c.name}>{c.name}</option>
+                ))}
+              </optgroup>
+              {availableCategories.some((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')) && (
+                <optgroup label="Kategori Lainnya">
+                  {availableCategories.filter((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')).map((c: any, idx: number) => (
+                    <option key={`oth-${idx}`} value={c.name}>{c.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
           <div>

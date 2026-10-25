@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import { printRabPdf } from '@/lib/printRabPdf';
 
 const STATUS_CONFIG: Record<
   string,
@@ -49,7 +50,7 @@ export default function FundRequestsPage() {
 
       const [res, deptRes] = await Promise.all([
         fetch("/api/fund-requests"),
-        fetch("/api/categories?type=departments"),
+        fetch("/api/categories?type=programs"),
       ]);
 
       if (!res.ok) {
@@ -283,14 +284,14 @@ export default function FundRequestsPage() {
         </div>
         <div className="w-48">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-            Department
+            Program
           </label>
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option value="All Departments">Semua Departemen</option>
+            <option value="All Departments">Semua Program</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.name}>
                 {dept.name}
@@ -309,7 +310,7 @@ export default function FundRequestsPage() {
                 <th className="p-3">No. Pengajuan</th>
                 <th className="p-3">Tanggal</th>
                 <th className="p-3">Pemohon</th>
-                <th className="p-3">Departemen</th>
+                <th className="p-3">Program</th>
                 <th className="p-3">Keperluan</th>
                 <th className="p-3 text-right">Jumlah</th>
                 <th className="p-3 text-center">Status</th>

@@ -13,6 +13,7 @@ class Category extends Model
     protected $fillable = [
         'code',
         'name',
+        'detail',
         'type',
         'status',
     ];

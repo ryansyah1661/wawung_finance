@@ -27,9 +27,15 @@ class FundRequestController extends Controller
             'applicant_name' => 'required|string|max:255',
             'department'     => 'required|string|max:255',
             'purpose'        => 'required|string',
+            'description'    => 'nullable|string',
             'amount'         => 'required|numeric|min:0',
+            'items'          => 'nullable',
             'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
+
+        if (isset($validated['items']) && is_string($validated['items'])) {
+            $validated['items'] = json_decode($validated['items'], true);
+        }
 
         $dateCode = now()->format('Y-m');
         $lastRecord = FundRequest::where('request_number', 'like', "PD-{$dateCode}-%")->latest('id')->first();
@@ -78,9 +84,15 @@ class FundRequestController extends Controller
             'applicant_name' => 'sometimes|string|max:255',
             'department'     => 'sometimes|string|max:255',
             'purpose'        => 'sometimes|string',
+            'description'    => 'nullable|string',
             'amount'         => 'sometimes|numeric|min:0',
+            'items'          => 'nullable',
             'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
+
+        if (isset($validated['items']) && is_string($validated['items'])) {
+            $validated['items'] = json_decode($validated['items'], true);
+        }
 
         if ($request->hasFile('attachment')) {
             if ($fundRequest->attachment) {

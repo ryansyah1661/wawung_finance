@@ -34,7 +34,7 @@ export default function InventoryPage() {
     try {
       const [invRes, catRes] = await Promise.all([
         api.get('/inventory'),
-        api.get('/categories')
+        api.get('/categories?type=inventory_categories,categories&status=active')
       ]);
 
       // Handle array response dari Axios/Laravel wrapper
@@ -51,7 +51,7 @@ export default function InventoryPage() {
           ? catRes.data
           : [];
 
-      const activeCats = catData.filter((c: any) => c.status === 'active' && c.type === 'categories');
+      const activeCats = catData.filter((c: any) => c.status === 'active');
       setAvailableCategories(activeCats);
     } catch (err) {
       console.error(err);
@@ -314,10 +314,25 @@ export default function InventoryPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</label>
-                  <select value={editData.category || ''} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm">
-                    {availableCategories.map((cat, idx) => (
-                      <option key={idx} value={cat.name}>{cat.name}</option>
-                    ))}
+                  <select value={editData.category || ''} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer">
+                    <option value="" disabled>Pilih Kategori Barang...</option>
+                    <optgroup label="Berdasarkan Masa Pemakaian">
+                      {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('masa pemakaian') || c.name?.includes('Pakai')).map((c: any, idx: number) => (
+                        <option key={`edit-mp-${idx}`} value={c.name}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Berdasarkan Mobilitas">
+                      {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('mobilitas') || c.name?.includes('Bergerak')).map((c: any, idx: number) => (
+                        <option key={`edit-mb-${idx}`} value={c.name}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    {availableCategories.some((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')) && (
+                      <optgroup label="Kategori Lainnya">
+                        {availableCategories.filter((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')).map((c: any, idx: number) => (
+                          <option key={`edit-oth-${idx}`} value={c.name}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
               </div>

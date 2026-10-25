@@ -35,11 +35,16 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'   => 'required|string|unique:categories,code',
+            'code'   => 'nullable|string|unique:categories,code',
             'name'   => 'required|string',
-            'type'   => 'required|string|in:accounts,categories,departments,vendors',
+            'detail' => 'nullable|string',
+            'type'   => 'required|string|in:accounts,categories,departments,vendors,programs,purposes,inventory_categories',
             'status' => 'nullable|string|in:active,inactive'
         ]);
+
+        if (empty($validated['code'])) {
+            $validated['code'] = 'CAT-' . strtoupper(substr($validated['type'], 0, 3)) . '-' . time() . '-' . rand(10, 99);
+        }
 
         if (!isset($validated['status'])) {
             $validated['status'] = 'active';
@@ -62,7 +67,8 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'code'   => 'sometimes|string|unique:categories,code,' . $category->id,
             'name'   => 'sometimes|string',
-            'type'   => 'sometimes|string|in:accounts,categories,departments,vendors',
+            'detail' => 'nullable|string',
+            'type'   => 'sometimes|string|in:accounts,categories,departments,vendors,programs,purposes,inventory_categories',
             'status' => 'sometimes|string|in:active,inactive'
         ]);
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { printRabPdf } from '@/lib/printRabPdf';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: string }> = {
   pending: { label: 'Pending Approval', bg: 'bg-amber-50', text: 'text-amber-700', icon: 'pending_actions' },
@@ -146,6 +147,14 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => printRabPdf(data)}
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors px-3.5 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-xs font-semibold"
+            title="Download atau Cetak PDF RAB"
+          >
+            <span className="material-symbols-outlined text-rose-600" style={{ fontSize: '18px' }}>picture_as_pdf</span>
+            Download PDF RAB
+          </button>
           {isPending && (
             <>
               <button
@@ -203,7 +212,7 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
               <span className="text-sm font-medium text-slate-900">{data.applicant_name || '-'}</span>
             </div>
             <div className="flex justify-between items-start py-2 border-b border-slate-100">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Departemen</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Program</span>
               <span className="text-sm text-slate-700">{data.department || '-'}</span>
             </div>
             <div className="flex justify-between items-start py-2 border-b border-slate-100">
@@ -256,6 +265,91 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
           )}
         </div>
       </div>
+
+      {/* Rincian Komponen RAB (Jika ada) */}
+      {data.items && Array.isArray(data.items) && data.items.length > 0 && (
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">table_chart</span>
+              Rincian Anggaran Biaya (RAB)
+            </h3>
+            <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">
+              {data.items.length} Komponen
+            </span>
+          </div>
+
+          <div className="border border-slate-200 rounded-xl overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="py-3 px-3 w-10 text-center">No.</th>
+                  <th className="py-3 px-3">Komponen</th>
+                  <th className="py-3 px-2 w-16 text-center">Qty</th>
+                  <th className="py-3 px-2 w-20">Satuan</th>
+                  <th className="py-3 px-2 w-16 text-center">Freq</th>
+                  <th className="py-3 px-2 w-20">Satuan</th>
+                  <th className="py-3 px-3 text-right">Biaya Satuan (Rp)</th>
+                  <th className="py-3 px-3 text-right">Total Biaya (Rp)</th>
+                  <th className="py-3 px-3">Keterangan</th>
+                  <th className="py-3 px-2 text-center w-24">ID Kategori</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {data.items.map((item: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-3 text-center text-slate-400 font-medium">
+                      {item.no || idx + 1}
+                    </td>
+                    <td className="py-3 px-3 font-medium text-slate-800">
+                      {item.komponen || '-'}
+                    </td>
+                    <td className="py-3 px-2 text-center font-mono text-slate-700">
+                      {item.qty ?? 0}
+                    </td>
+                    <td className="py-3 px-2 text-slate-600">
+                      {item.satuan || '-'}
+                    </td>
+                    <td className="py-3 px-2 text-center font-mono text-slate-700">
+                      {item.freq ?? 0}
+                    </td>
+                    <td className="py-3 px-2 text-slate-600">
+                      {item.satuan_freq || '-'}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono text-slate-700">
+                      Rp {Number(item.biaya_satuan || 0).toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                      Rp {Number(item.total || 0).toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-3 px-3 text-slate-600">
+                      {item.keterangan || '-'}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-100 text-slate-700 font-bold font-mono text-xs">
+                        {item.kode_kategori || item.kodeKategori || '-'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                <tr>
+                  <td colSpan={7} className="py-3.5 px-4 text-right font-bold text-slate-700 uppercase tracking-wider text-xs">
+                    Total Biaya Pengajuan:
+                  </td>
+                  <td className="py-3.5 px-3 text-right">
+                    <span className="font-mono font-bold text-primary text-sm">
+                      {formatRupiah(data.amount)}
+                    </span>
+                  </td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Approval Modal */}
       {showApprovalModal && (

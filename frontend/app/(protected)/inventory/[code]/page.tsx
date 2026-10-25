@@ -4,15 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import PageSkeleton from '@/components/ui/PageSkeleton';
-
-const INVENTORY = [
-  { code: 'INV-A-001', name: 'Laptop Dell Latitude 5420', category: 'Elektronik', location: 'Gudang Pusat', qty: 8, unit: 'unit', status: 'available', value: 12000000, addedDate: '2023-08-15', notes: 'Kondisi baik, tersedia untuk peminjaman' },
-  { code: 'INV-A-002', name: 'Kursi Kantor Ergonomis', category: 'Furniture', location: 'Lantai 2', qty: 24, unit: 'unit', status: 'available', value: 1500000, addedDate: '2023-05-10', notes: '' },
-  { code: 'INV-A-003', name: 'Printer Epson L3210', category: 'Elektronik', location: 'Ruang Admin', qty: 2, unit: 'unit', status: 'low-stock', value: 2200000, addedDate: '2023-03-22', notes: 'Perlu restock cartridge' },
-  { code: 'INV-A-004', name: 'Kertas A4 80gsm', category: 'ATK', location: 'Gudang Pusat', qty: 4, unit: 'rim', status: 'low-stock', value: 55000, addedDate: '2023-09-01', notes: '' },
-  { code: 'INV-A-005', name: 'Proyektor Epson EB-X41', category: 'Elektronik', location: 'Ruang Meeting', qty: 0, unit: 'unit', status: 'out-of-stock', value: 5500000, addedDate: '2022-11-30', notes: 'Sedang diperbaiki di vendor' },
-  { code: 'INV-A-006', name: 'Meja Kerja Standing Desk', category: 'Furniture', location: 'Lantai 3', qty: 12, unit: 'unit', status: 'available', value: 2800000, addedDate: '2023-06-18', notes: '' },
-];
+import KawungQrCode from '@/components/KawungQrCode';
+import api from '@/lib/api';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   available: { label: 'Tersedia', bg: 'bg-emerald-50', text: 'text-emerald-700' },
@@ -23,8 +16,6 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 function formatRupiah(amount: number) {
   return `Rp ${amount.toLocaleString('id-ID')}`;
 }
-
-import api from '@/lib/api';
 
 export default function InventoryDetailPage() {
   const params = useParams();
@@ -67,9 +58,8 @@ export default function InventoryDetailPage() {
     );
   }
 
-  const status = STATUS_CONFIG[item.status];
+  const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.available;
   const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/inventory/${item.code}` : '';
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(detailUrl)}`;
 
   return (
     <div className="max-w-[800px] mx-auto space-y-6">
@@ -94,16 +84,13 @@ export default function InventoryDetailPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
         {/* QR Code Card */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col items-center justify-center gap-3">
-          <img src={qrImageUrl} alt={`QR Code ${item.code}`} className="w-40 h-40" />
-          <p className="text-xs text-slate-400 text-center">Scan untuk membuka halaman ini</p>
-          <a
-            href={qrImageUrl}
-            download={`qr-${item.code}.png`}
-            className="w-full text-center px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            Download QR
-          </a>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col items-center justify-center">
+          <KawungQrCode
+            value={detailUrl}
+            size={180}
+            downloadFileName={`qr-${item.code}.png`}
+            showDownloadButton={true}
+          />
         </div>
 
         {/* Info Card */}
