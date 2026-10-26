@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import api from '@/lib/api';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 import { printRabPdf } from '@/lib/printRabPdf';
 
@@ -49,21 +50,15 @@ export default function FundRequestsPage() {
       setErrorMsg("");
 
       const [res, deptRes] = await Promise.all([
-        fetch("/api/fund-requests"),
-        fetch("/api/categories?type=programs"),
+        api.get("/fund-requests"),
+        api.get("/categories?type=programs&status=active"),
       ]);
 
-      if (!res.ok) {
-        throw new Error("Gagal mengambil data dari server");
-      }
+      const reqData = res.data?.data || res.data;
+      setRequests(Array.isArray(reqData) ? reqData : []);
 
-      const data = await res.json();
-      setRequests(Array.isArray(data) ? data : data.data || []);
-
-      if (deptRes.ok) {
-        const deptData = await deptRes.json();
-        setDepartments(deptData.data || []);
-      }
+      const deptData = deptRes.data?.data || deptRes.data;
+      setDepartments(Array.isArray(deptData) ? deptData : []);
     } catch (err: any) {
       setErrorMsg(err.message || "Terjadi kesalahan saat memuat data");
     } finally {
@@ -80,11 +75,7 @@ export default function FundRequestsPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus pengajuan ini?")) return;
 
     try {
-      const res = await fetch(`/api/fund-requests/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Gagal menghapus data");
+      await api.delete(`/fund-requests/${id}`);
 
       setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (err: any) {

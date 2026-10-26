@@ -18,20 +18,10 @@ export interface FundRequestPrintData {
   items?: any;
 }
 
-export const KODE_KATEGORI_MAP: Record<string, string> = {
-  '1': 'Biaya Transport',
-  '2': 'Biaya Konsumsi',
-  '3': 'Biaya Akomodasi',
-  '4': 'Biaya Peralatan/Perlengkapan',
-  '5': 'ATK',
-  '6': 'Honorarium/Uang harian/Upah',
-  '7': 'Lain-Lain',
-};
-
 export function printRabPdf(data: FundRequestPrintData) {
   const reqNumber = data.request_number || `#${data.id || '-'}`;
-  const applicant = data.applicant_name || data.requester || 'Bangkit/ Koordinator Lapangan';
-  const department = data.department || 'Operasional';
+  const applicant = data.applicant_name || data.requester || '-';
+  const department = data.department || '-';
   const purpose = data.purpose || '-';
 
   // Format Dates
@@ -377,7 +367,7 @@ export function printRabPdf(data: FundRequestPrintData) {
         </div>
         <div class="header-title">
           <h1>RANCANGAN ANGGARAN BIAYA</h1>
-          <h2>PROGRAM SURADIRA FOLU-NC4</h2>
+          <h2>PROGRAM ${department ? department.toUpperCase() : '- '}</h2>
           <p>No. Pengajuan: <strong>${reqNumber}</strong></p>
         </div>
       </div>

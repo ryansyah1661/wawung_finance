@@ -4,13 +4,12 @@ import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 
-type TabKey = 'accounts' | 'categories' | 'inventory_categories' | 'departments' | 'vendors' | 'programs' | 'purposes';
+type TabKey = 'accounts' | 'categories' | 'inventory_categories' | 'vendors' | 'programs' | 'purposes';
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'accounts', label: 'Akun Bank/Kas', icon: 'account_balance' },
   { key: 'categories', label: 'Kategori Transaksi', icon: 'category' },
   { key: 'inventory_categories', label: 'Kategori Barang', icon: 'inventory_2' },
-  { key: 'departments', label: 'Departemen', icon: 'apartment' },
   { key: 'vendors', label: 'Vendor/Klien', icon: 'storefront' },
   { key: 'programs', label: 'Program', icon: 'assignment' },
   { key: 'purposes', label: 'Keperluan', icon: 'task' },
@@ -20,6 +19,7 @@ export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('categories');
   const [masterData, setMasterData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [programList, setProgramList] = useState<string[]>([]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,6 +47,10 @@ export default function MasterDataPage() {
   };
 
   useEffect(() => {
+    api.get('/categories?type=programs&status=active').then(res => {
+      const list = res.data?.data || res.data;
+      if (Array.isArray(list)) setProgramList(list.map((p: any) => p.name));
+    }).catch(() => {});
     fetchMasterData();
   }, [activeTab]);
 
@@ -149,7 +153,7 @@ export default function MasterDataPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="p-3">Nama</th>
-                <th className="p-3">Detail</th>
+                <th className="p-3">{activeTab === 'purposes' ? 'Program Terkait' : 'Detail'}</th>
                 <th className="p-3 text-center">Status</th>
                 <th className="p-3 w-24 text-center">Aksi</th>
               </tr>
@@ -218,15 +222,32 @@ export default function MasterDataPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detail / Keterangan</label>
-                <input
-                  type="text"
-                  value={formData.detail}
-                  onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-                  required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
-                  placeholder="Detail keterangan..."
-                />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  {activeTab === 'purposes' ? 'Program Terkait' : 'Detail / Keterangan'}
+                </label>
+                {activeTab === 'purposes' ? (
+                  <select
+                    value={formData.detail}
+                    onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
+                  >
+                    <option value="" disabled>Pilih Program...</option>
+                    <option value="Semua Program">Semua Program (Umum)</option>
+                    {programList.map((progName, idx) => (
+                      <option key={idx} value={progName}>{progName}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.detail}
+                    onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                    placeholder="Detail keterangan..."
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>

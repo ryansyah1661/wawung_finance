@@ -5,16 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
-export const KODE_KATEGORI_LIST = [
-  { id: '1', name: 'Biaya Transport' },
-  { id: '2', name: 'Biaya Konsumsi' },
-  { id: '3', name: 'Biaya Akomodasi' },
-  { id: '4', name: 'Biaya Peralatan/Perlengkapan' },
-  { id: '5', name: 'ATK' },
-  { id: '6', name: 'Honorarium/Uang harian/Upah' },
-  { id: '7', name: 'Lain-Lain' },
-];
-
 interface RabItem {
   id: string;
   komponen: string;
@@ -37,6 +27,7 @@ export default function NewFundRequestPage() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [purpose, setPurpose] = useState('');
   const [purposes, setPurposes] = useState<any[]>([]);
+  const [rabCategories, setRabCategories] = useState<any[]>([]);
   const [neededDate, setNeededDate] = useState('');
   const [description, setDescription] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -62,59 +53,86 @@ export default function NewFundRequestPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [validationError, setValidationError] = useState('');
 
+  // Filter Keperluan khusus untuk Program yang dipilih
+  const filteredPurposes = purposes.filter((p: any) => {
+    if (!department) return true;
+    if (!p.detail || p.detail === 'Semua Program' || p.detail === 'Umum') return true;
+    return p.detail.trim().toLowerCase() === department.trim().toLowerCase();
+  });
+
+  const handleProgramChange = (selectedProg: string) => {
+    setDepartment(selectedProg);
+    const matching = purposes.filter((p: any) => {
+      if (!p.detail || p.detail === 'Semua Program' || p.detail === 'Umum') return true;
+      return p.detail.trim().toLowerCase() === selectedProg.trim().toLowerCase();
+    });
+    if (matching.length > 0) {
+      setPurpose(matching[0].name);
+    } else {
+      setPurpose('');
+    }
+  };
+
   // Prefill applicant from localStorage & Fetch programs and purposes
   useEffect(() => {
     const savedName = localStorage.getItem('user_name');
     if (savedName) setApplicantName(savedName);
 
     const fetchDropdownData = async () => {
-      // 1. Fetch Programs
+      let initialProg = '';
+
+      // 1. Fetch Programs murni dari database
       try {
         const res = await api.get('/categories?type=programs&status=active');
         const data = res.data?.data || res.data;
-        if (Array.isArray(data) && data.length > 0) {
-          setPrograms(data);
-          setDepartment(data[0].name);
-        } else {
-          throw new Error('Empty programs');
+        const progList = Array.isArray(data) ? data : [];
+        setPrograms(progList);
+        if (progList.length > 0) {
+          initialProg = progList[0].name;
+          setDepartment(initialProg);
         }
       } catch (err) {
-        setPrograms([
-          { id: 1, code: 'PRG-001', name: 'SURADIRA FOLU-NC4' },
-          { id: 2, code: 'PRG-002', name: 'REHABILITASI MANGROVE' },
-          { id: 3, code: 'PRG-003', name: 'PEMBERDAYAAN MASYARAKAT' },
-          { id: 4, code: 'PRG-004', name: 'KONSERVASI HUTAN' },
-          { id: 5, code: 'PRG-005', name: 'PENDAMPINGAN DESA' },
-        ]);
-        setDepartment('SURADIRA FOLU-NC4');
+        console.error('Gagal mengambil program dari database:', err);
+        setPrograms([]);
       }
 
-      // 2. Fetch Purposes
+      // 2. Fetch Purposes murni dari database
       try {
         const res = await api.get('/categories?type=purposes&status=active');
         const data = res.data?.data || res.data;
-        if (Array.isArray(data) && data.length > 0) {
-          setPurposes(data);
-          if (data[0]?.name) {
-            setPurpose(data[0].name);
+        const purpList = Array.isArray(data) ? data : [];
+        setPurposes(purpList);
+        if (purpList.length > 0 && initialProg) {
+          const matched = purpList.filter((p: any) => {
+            if (!p.detail || p.detail === 'Semua Program' || p.detail === 'Umum') return true;
+            return p.detail.trim().toLowerCase() === initialProg.trim().toLowerCase();
+          });
+          if (matched.length > 0) {
+            setPurpose(matched[0].name);
+          } else {
+            setPurpose(purpList[0].name);
           }
-        } else {
-          throw new Error('Empty purposes');
         }
       } catch (err) {
-        setPurposes([
-          { id: 1, code: 'KPR-001', name: 'Visioning dan penyusunan rancangan teknis rehabilitasi mangrove' },
-          { id: 2, code: 'KPR-002', name: 'Sosialisasi program kepada masyarakat' },
-          { id: 3, code: 'KPR-003', name: 'Pelatihan teknis lapangan' },
-          { id: 4, code: 'KPR-004', name: 'Monitoring dan evaluasi kegiatan' },
-          { id: 5, code: 'KPR-005', name: 'Rapat koordinasi internal' },
-          { id: 6, code: 'KPR-006', name: 'Pengadaan peralatan lapangan' },
-          { id: 7, code: 'KPR-007', name: 'Perjalanan dinas / kunjungan lapangan' },
-          { id: 8, code: 'KPR-008', name: 'Workshop dan seminar' },
-          { id: 9, code: 'KPR-009', name: 'Penyusunan laporan kegiatan' },
-          { id: 10, code: 'KPR-010', name: 'Biaya operasional kantor' },
-        ]);
-        setPurpose('Visioning dan penyusunan rancangan teknis rehabilitasi mangrove');
+        console.error('Gagal mengambil keperluan dari database:', err);
+        setPurposes([]);
+      }
+
+      // 3. Fetch Kategori Transaksi / RAB murni dari database
+      try {
+        const res = await api.get('/categories?type=categories&status=active');
+        const data = res.data?.data || res.data;
+        const catList = Array.isArray(data) ? data : [];
+        catList.sort((a: any, b: any) => {
+          const numA = parseInt(a.code, 10);
+          const numB = parseInt(b.code, 10);
+          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+          return (a.code || '').localeCompare(b.code || '');
+        });
+        setRabCategories(catList);
+      } catch (err) {
+        console.error('Gagal mengambil kategori RAB dari database:', err);
+        setRabCategories([]);
       }
     };
 
@@ -306,7 +324,7 @@ export default function NewFundRequestPage() {
               <select
                 required
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                onChange={(e) => handleProgramChange(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
               >
                 <option value="" disabled>Pilih Program...</option>
@@ -330,17 +348,23 @@ export default function NewFundRequestPage() {
                 onChange={(e) => setPurpose(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
               >
-                <option value="" disabled>Pilih Keperluan...</option>
-                {purposes.map((purp: any) => (
-                  <option key={purp.id || purp.code || purp.name} value={purp.name}>
-                    {purp.code ? `[${purp.code}] ${purp.name}` : purp.name}
-                  </option>
-                ))}
+                {filteredPurposes.length === 0 ? (
+                  <option value="" disabled>Belum ada keperluan terdaftar untuk program ini</option>
+                ) : (
+                  <>
+                    <option value="" disabled>Pilih Keperluan...</option>
+                    {filteredPurposes.map((purp: any) => (
+                      <option key={purp.id || purp.code || purp.name} value={purp.name}>
+                        {purp.code ? `[${purp.code}] ${purp.name}` : purp.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
             <div>
               <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Tanggal Dibutuhkan <span className="text-rose-500">*</span>
+                Tanggal Pengajuan <span className="text-rose-500">*</span>
               </label>
               <input
                 type="date"
@@ -361,9 +385,6 @@ export default function NewFundRequestPage() {
                 <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
                 Rincian Anggaran Biaya (RAB)
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Total Biaya dihitung otomatis: <span className="font-semibold text-slate-700">Qty × Freq × Biaya Satuan</span>
-              </p>
             </div>
             <button
               type="button"
@@ -474,12 +495,12 @@ export default function NewFundRequestPage() {
                       <select
                         value={item.kodeKategori}
                         onChange={(e) => handleItemChange(index, 'kodeKategori', e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs cursor-pointer"
+                        className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs cursor-pointer font-mono"
                       >
                         <option value="">Pilih ID / Kategori...</option>
-                        {KODE_KATEGORI_LIST.map((k) => (
-                          <option key={k.id} value={k.id}>
-                            {k.id} - {k.name}
+                        {rabCategories.map((k: any) => (
+                          <option key={k.id || k.code || k.name} value={k.code}>
+                            {k.code} - {k.name}
                           </option>
                         ))}
                       </select>
@@ -514,16 +535,16 @@ export default function NewFundRequestPage() {
             </table>
           </div>
 
-          {/* Reference Card: Kode Kategori */}
+          {/* Reference Card: Kode Kategori (Sesuai Format Excel) */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-            <span className="font-bold text-slate-700 block mb-1">Referensi Kode Kategori:</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-[11px]">
-              {KODE_KATEGORI_LIST.map((k) => (
-                <div key={k.id} className="flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded bg-slate-200 text-slate-700 font-bold font-mono flex items-center justify-center text-[10px] shrink-0">
-                    {k.id}
+            <span className="font-bold text-slate-700 block mb-1.5">Kode Kategori (Sesuai Excel):</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[11px]">
+              {rabCategories.map((k: any) => (
+                <div key={k.id || k.code || k.name} className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-800 font-bold font-mono flex items-center justify-center text-[10px] shrink-0">
+                    {k.code || k.id}
                   </span>
-                  <span className="truncate">{k.name}</span>
+                  <span className="truncate text-slate-700 font-medium">{k.name}</span>
                 </div>
               ))}
             </div>

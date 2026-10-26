@@ -6,9 +6,15 @@ import api from '@/lib/api';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  available: { label: 'Tersedia', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  'low-stock': { label: 'Stok Menipis', bg: 'bg-amber-50', text: 'text-amber-700' },
-  'out-of-stock': { label: 'Habis', bg: 'bg-rose-50', text: 'text-rose-700' },
+  baik: { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  available: { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'tidak-rusak': { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'low-stock': { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'rusak-ringan': { label: 'Rusak Ringan', bg: 'bg-amber-50', text: 'text-amber-700' },
+  'rusak-berat': { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  rusak: { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  damaged: { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  'out-of-stock': { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
 };
 
 function formatRupiah(amount: number) {
@@ -34,7 +40,7 @@ export default function InventoryPage() {
     try {
       const [invRes, catRes] = await Promise.all([
         api.get('/inventory'),
-        api.get('/categories?type=inventory_categories,categories&status=active')
+        api.get('/categories?type=inventory_categories&status=active')
       ]);
 
       // Handle array response dari Axios/Laravel wrapper
@@ -90,11 +96,7 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!editData) return;
     try {
-      let newStatus = 'available';
-      if (editData.qty === 0) newStatus = 'out-of-stock';
-      else if (editData.qty <= 5) newStatus = 'low-stock';
-
-      const payload = { ...editData, status: newStatus };
+      const payload = { ...editData };
 
       await api.put(`/inventory/${editData.code}`, payload);
       fetchData();
@@ -111,7 +113,7 @@ export default function InventoryPage() {
     const matchSearch = nameMatch || codeMatch;
 
     const matchCategory = categoryFilter === 'Semua Kategori' || item.category === categoryFilter;
-    const mappedStatus = STATUS_CONFIG[item.status]?.label || item.status;
+    const mappedStatus = STATUS_CONFIG[item.status]?.label || 'Baik';
     const matchStatus = statusFilter === 'Semua Status' || mappedStatus === statusFilter;
 
     return matchSearch && matchCategory && matchStatus;
@@ -135,8 +137,9 @@ export default function InventoryPage() {
   };
 
   const totalValue = filteredInventory.reduce((sum, item) => sum + ((item.qty || 0) * (item.value || 0)), 0);
-  const lowStockCount = filteredInventory.filter((i) => i.status === 'low-stock').length;
-  const outOfStockCount = filteredInventory.filter((i) => i.status === 'out-of-stock').length;
+  const baikCount = inventory.filter((i) => i.status === 'baik' || i.status === 'available' || i.status === 'tidak-rusak' || i.status === 'low-stock').length;
+  const rusakRinganCount = inventory.filter((i) => i.status === 'rusak-ringan').length;
+  const rusakBeratCount = inventory.filter((i) => i.status === 'rusak-berat' || i.status === 'rusak' || i.status === 'damaged' || i.status === 'out-of-stock').length;
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -159,42 +162,71 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
+      {/* Stats Row: Kondisi Barang */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div
+          onClick={() => { setStatusFilter('Semua Status'); setCategoryFilter('Semua Kategori'); }}
+          className={`bg-white border ${statusFilter === 'Semua Status' ? 'border-primary ring-1 ring-primary/20' : 'border-slate-200'} shadow-sm rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors`}
+          title="Tampilkan semua item"
+        >
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Item</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">{filteredInventory.length}</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{inventory.length}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <span className="material-symbols-outlined text-[20px]">inventory_2</span>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
+
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nilai Aset</p>
-            <p className="text-lg font-bold text-slate-900 font-mono">{formatRupiah(totalValue)}</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nilai</p>
+            <p className="text-base font-bold text-slate-900 font-mono truncate max-w-[140px]" title={formatRupiah(totalValue)}>{formatRupiah(totalValue)}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
             <span className="material-symbols-outlined text-[20px]">payments</span>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
+
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'Baik' ? 'Semua Status' : 'Baik')}
+          className={`bg-white border ${statusFilter === 'Baik' ? 'border-emerald-500 ring-1 ring-emerald-500/20' : 'border-slate-200'} shadow-sm rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-emerald-400 transition-colors`}
+          title="Filter Kondisi Baik"
+        >
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Stok Menipis</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">{lowStockCount}</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Baik</p>
+            <p className="text-xl font-bold text-emerald-600 font-mono">{baikCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-            <span className="material-symbols-outlined text-[20px]">warning</span>
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <span className="material-symbols-outlined text-[20px]">verified</span>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between">
+
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'Rusak Ringan' ? 'Semua Status' : 'Rusak Ringan')}
+          className={`bg-white border ${statusFilter === 'Rusak Ringan' ? 'border-amber-500 ring-1 ring-amber-500/20' : 'border-slate-200'} shadow-sm rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-amber-400 transition-colors`}
+          title="Filter Rusak Ringan"
+        >
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Stok Habis</p>
-            <p className="text-xl font-bold text-slate-900 font-mono">{outOfStockCount}</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rusak Ringan</p>
+            <p className="text-xl font-bold text-amber-600 font-mono">{rusakRinganCount}</p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+            <span className="material-symbols-outlined text-[20px]">build</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'Rusak Berat' ? 'Semua Status' : 'Rusak Berat')}
+          className={`bg-white border ${statusFilter === 'Rusak Berat' ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200'} shadow-sm rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-rose-400 transition-colors`}
+          title="Filter Rusak Berat"
+        >
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rusak Berat</p>
+            <p className="text-xl font-bold text-rose-600 font-mono">{rusakBeratCount}</p>
           </div>
           <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
-            <span className="material-symbols-outlined text-[20px]">remove_shopping_cart</span>
+            <span className="material-symbols-outlined text-[20px]">warning</span>
           </div>
         </div>
       </div>
@@ -221,12 +253,12 @@ export default function InventoryPage() {
           </select>
         </div>
         <div className="w-44">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kondisi / Status</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer">
             <option>Semua Status</option>
-            <option>Tersedia</option>
-            <option>Stok Menipis</option>
-            <option>Habis</option>
+            <option>Baik</option>
+            <option>Rusak Ringan</option>
+            <option>Rusak Berat</option>
           </select>
         </div>
       </div>
@@ -243,7 +275,7 @@ export default function InventoryPage() {
                 <th className="p-3">Lokasi</th>
                 <th className="p-3 text-right">Stok</th>
                 <th className="p-3 text-right">Nilai/Unit</th>
-                <th className="p-3 text-center">Status</th>
+                <th className="p-3 text-center">Kondisi</th>
                 <th className="p-3 w-24 text-center">Aksi</th>
               </tr>
             </thead>
@@ -267,9 +299,10 @@ export default function InventoryPage() {
                     <td className="p-3 text-right font-mono text-slate-900">{item.qty} {item.unit}</td>
                     <td className="p-3 text-right font-mono text-slate-500">{formatRupiah(item.value)}</td>
                     <td className="p-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${status.bg} ${status.text}`}>
-                        {status.label}
-                      </span>
+                      {(() => {
+                        const st = STATUS_CONFIG[item.status] || STATUS_CONFIG.baik;
+                        return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${st.bg} ${st.text}`}>{st.label}</span>;
+                      })()}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-center gap-1">
@@ -316,23 +349,9 @@ export default function InventoryPage() {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</label>
                   <select value={editData.category || ''} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer">
                     <option value="" disabled>Pilih Kategori Barang...</option>
-                    <optgroup label="Berdasarkan Masa Pemakaian">
-                      {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('masa pemakaian') || c.name?.includes('Pakai')).map((c: any, idx: number) => (
-                        <option key={`edit-mp-${idx}`} value={c.name}>{c.name}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Berdasarkan Mobilitas">
-                      {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('mobilitas') || c.name?.includes('Bergerak')).map((c: any, idx: number) => (
-                        <option key={`edit-mb-${idx}`} value={c.name}>{c.name}</option>
-                      ))}
-                    </optgroup>
-                    {availableCategories.some((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')) && (
-                      <optgroup label="Kategori Lainnya">
-                        {availableCategories.filter((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')).map((c: any, idx: number) => (
-                          <option key={`edit-oth-${idx}`} value={c.name}>{c.name}</option>
-                        ))}
-                      </optgroup>
-                    )}
+                    {availableCategories.map((c: any, idx: number) => (
+                      <option key={idx} value={c.name}>{c.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -340,9 +359,23 @@ export default function InventoryPage() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Barang</label>
                 <input type="text" value={editData.name || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lokasi</label>
-                <input type="text" value={editData.location || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lokasi</label>
+                  <input type="text" value={editData.location || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} required className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kondisi Barang</label>
+                  <select
+                    value={editData.status || 'baik'}
+                    onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
+                  >
+                    <option value="baik">Baik</option>
+                    <option value="rusak-ringan">Rusak Ringan</option>
+                    <option value="rusak-berat">Rusak Berat</option>
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>

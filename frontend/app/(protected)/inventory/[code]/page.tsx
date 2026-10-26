@@ -8,9 +8,15 @@ import KawungQrCode from '@/components/KawungQrCode';
 import api from '@/lib/api';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  available: { label: 'Tersedia', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  'low-stock': { label: 'Stok Menipis', bg: 'bg-amber-50', text: 'text-amber-700' },
-  'out-of-stock': { label: 'Habis', bg: 'bg-rose-50', text: 'text-rose-700' },
+  baik: { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  available: { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'tidak-rusak': { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'low-stock': { label: 'Baik', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'rusak-ringan': { label: 'Rusak Ringan', bg: 'bg-amber-50', text: 'text-amber-700' },
+  'rusak-berat': { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  rusak: { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  damaged: { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
+  'out-of-stock': { label: 'Rusak Berat', bg: 'bg-rose-50', text: 'text-rose-700' },
 };
 
 function formatRupiah(amount: number) {
@@ -58,7 +64,10 @@ export default function InventoryDetailPage() {
     );
   }
 
-  const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.available;
+  const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.baik;
+  const condLabel = status.label;
+  const condDotClass = item.status === 'rusak-ringan' ? 'bg-amber-500' : (item.status === 'rusak-berat' || item.status === 'rusak' || item.status === 'damaged') ? 'bg-rose-500' : 'bg-emerald-500';
+  const condTextClass = item.status === 'rusak-ringan' ? 'text-amber-700' : (item.status === 'rusak-berat' || item.status === 'rusak' || item.status === 'damaged') ? 'text-rose-700' : 'text-emerald-700';
   const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/inventory/${item.code}` : '';
 
   return (
@@ -97,10 +106,19 @@ export default function InventoryDetailPage() {
         <div className="sm:col-span-2 bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-5">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Informasi Barang</h3>
 
-          <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-6">
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kategori</p>
               <p className="text-sm text-slate-900">{item.category}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kondisi</p>
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${condDotClass}`} />
+                <span className={condTextClass}>
+                  {condLabel}
+                </span>
+              </p>
             </div>
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Lokasi</p>

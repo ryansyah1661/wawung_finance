@@ -7,11 +7,24 @@ import api from '@/lib/api';
 export default function LoginPage() {
   const router = useRouter();
 
-  // Redirect ke dashboard jika sudah login
+  // Redirect ke dashboard jika sudah login & server valid
   useEffect(() => {
     const userId = localStorage.getItem('user_id');
     if (userId) {
-      router.replace('/dashboard');
+      api.get(`/users/${userId}`)
+        .then(() => {
+          router.replace('/dashboard');
+        })
+        .catch(() => {
+          // Server offline atau user tidak valid, bersihkan sesi usang
+          localStorage.removeItem('user_id');
+          localStorage.removeItem('user_name');
+          localStorage.removeItem('user_email');
+          localStorage.removeItem('user_role');
+          localStorage.removeItem('user_department');
+          localStorage.removeItem('user_phone');
+          localStorage.removeItem('user_position');
+        });
     }
   }, [router]);
   

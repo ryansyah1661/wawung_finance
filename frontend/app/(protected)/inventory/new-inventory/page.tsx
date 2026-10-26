@@ -16,6 +16,7 @@ export default function NewInventoryItemPage() {
   const [unit, setUnit] = useState('');
   const [value, setValue] = useState('');
   const [notes, setNotes] = useState('');
+  const [condition, setCondition] = useState('baik');
   const [savedCode, setSavedCode] = useState<string | null>(null);
   const [photo, setPhoto] = useState<{name: string, dataUrl: string, file?: File} | null>(null);
   const [availableCategories, setAvailableCategories] = useState<{name: string; detail?: string; code?: string}[]>([]);
@@ -32,10 +33,6 @@ export default function NewInventoryItemPage() {
       return;
     }
 
-    let newStatus = 'available';
-    if (parseInt(qty) === 0) newStatus = 'out-of-stock';
-    else if (parseInt(qty) <= 5) newStatus = 'low-stock';
-
     try {
       const formData = new FormData();
       formData.append('name', name);
@@ -43,7 +40,7 @@ export default function NewInventoryItemPage() {
       formData.append('location', location);
       formData.append('qty', qty.toString());
       formData.append('unit', unit || '-');
-      formData.append('status', newStatus);
+      formData.append('status', condition);
       formData.append('value', value.replace(/\D/g, '') || '0');
       formData.append('notes', notes);
       formData.append('addedDate', addedDate);
@@ -70,33 +67,16 @@ export default function NewInventoryItemPage() {
   };
 
   useEffect(() => {
-    // Fetch categories from API
-    api.get('/categories?type=inventory_categories,categories&status=active')
+    // Fetch categories strictly from database
+    api.get('/categories?type=inventory_categories&status=active')
       .then(res => {
         const responseData = res.data?.data || res.data;
         const cats = Array.isArray(responseData) ? responseData : [];
-        if (cats.length > 0) setAvailableCategories(cats);
-        else setAvailableCategories([
-          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
-          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
-        ]);
-        setAvailableCategories([
-          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
-          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
-        ]);
+        setAvailableCategories(cats);
       })
       .catch(err => {
-        console.error(err);
-        setAvailableCategories([
-          { name: 'Barang Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Tidak Habis Pakai', detail: 'Berdasarkan Masa Pemakaian' },
-          { name: 'Barang Bergerak', detail: 'Berdasarkan Mobilitas' },
-          { name: 'Barang Tidak Bergerak', detail: 'Berdasarkan Mobilitas' },
-        ]);
+        console.error('Gagal memuat kategori inventaris:', err);
+        setAvailableCategories([]);
       });
   }, []);
 
@@ -186,7 +166,7 @@ export default function NewInventoryItemPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kategori</label>
             <select
@@ -195,23 +175,21 @@ export default function NewInventoryItemPage() {
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
             >
               <option value="" disabled>Pilih Kategori Barang...</option>
-              <optgroup label="Berdasarkan Masa Pemakaian">
-                {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('masa pemakaian') || c.name?.includes('Pakai')).map((c: any, idx: number) => (
-                  <option key={`mp-${idx}`} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Berdasarkan Mobilitas">
-                {availableCategories.filter((c: any) => c.detail?.toLowerCase().includes('mobilitas') || c.name?.includes('Bergerak')).map((c: any, idx: number) => (
-                  <option key={`mb-${idx}`} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-              {availableCategories.some((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')) && (
-                <optgroup label="Kategori Lainnya">
-                  {availableCategories.filter((c: any) => !c.detail?.toLowerCase().includes('masa pemakaian') && !c.detail?.toLowerCase().includes('mobilitas') && !c.name?.includes('Pakai') && !c.name?.includes('Bergerak')).map((c: any, idx: number) => (
-                    <option key={`oth-${idx}`} value={c.name}>{c.name}</option>
-                  ))}
-                </optgroup>
-              )}
+              {availableCategories.map((c: any, idx: number) => (
+                <option key={idx} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kondisi Barang</label>
+            <select
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
+            >
+              <option value="baik">Baik</option>
+              <option value="rusak-ringan">Rusak Ringan</option>
+              <option value="rusak-berat">Rusak Berat</option>
             </select>
           </div>
           <div>
