@@ -1,5 +1,7 @@
 'use client';
 
+import DetailSkeleton from '@/components/ui/DetailSkeleton';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -120,7 +122,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  if (isLoading) return <div className="p-10 text-center text-slate-500">Loading data...</div>;
+  if (isLoading) return <DetailSkeleton maxWidth="max-w-300" />;
 
   if (!invoice) {
     return (

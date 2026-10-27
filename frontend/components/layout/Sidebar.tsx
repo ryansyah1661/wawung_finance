@@ -17,28 +17,26 @@ const MENU_GROUPS: MenuGroup[] = [
       { href: "/reports", label: "Report", icon: "bar_chart" },
       { href: "/master-data", label: "Master Data", icon: "database" },
       { href: "/invoices", label: "Invoices", icon: "description" },
-    ]
+    ],
   },
   {
     title: "REQUEST",
     items: [
       { href: "/fund-requests", label: "Payment Request", icon: "account_balance_wallet" },
       { href: "/reimbursements", label: "Reimbursement", icon: "receipt_long" },
-    ]
+    ],
   },
   {
     title: "INVENTORY",
-    items: [
-      { href: "/inventory", label: "Inventaris", icon: "inventory_2" },
-    ]
+    items: [{ href: "/inventory", label: "Inventaris", icon: "inventory_2" }],
   },
   {
     title: "ADMINISTRATION",
     items: [
       { href: "/user-management", label: "User Management", icon: "group" },
       { href: "/activity-log", label: "Activity Log", icon: "history" },
-    ]
-  }
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -48,7 +46,7 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userId = localStorage.getItem('user_id') || '2';
+        const userId = localStorage.getItem("user_id") || "2";
         const res = await api.get(`/users/${userId}`);
         if (res.data && res.data.role) {
           setUserRole(res.data.role);
@@ -61,17 +59,17 @@ export default function Sidebar() {
     fetchUser();
 
     const handleUpdate = () => fetchUser();
-    window.addEventListener('userProfileUpdated', handleUpdate);
-    return () => window.removeEventListener('userProfileUpdated', handleUpdate);
+    window.addEventListener("userProfileUpdated", handleUpdate);
+    return () => window.removeEventListener("userProfileUpdated", handleUpdate);
   }, []);
 
   return (
     <nav className="hidden md:flex flex-col h-screen w-sidebar-width bg-sidebar text-sidebar-foreground fixed left-0 top-0 border-r border-slate-200 z-20 p-2">
-      <div className="px-4 py-6 mb-4 flex items-center gap-3">
-        <img className="w-8 h-8 rounded" src="/assets/images/logo-kawung.png?v=2" alt="Wawung Finance" />
-        <div>
-          <h1 className="font-semibold text-primary">Wawung Finance</h1>
-          <p className="text-xs text-muted-foreground">Internal Finance Portal</p>
+      <div className="px-3.5 py-6 mb-4 flex items-center gap-3">
+        <img className="w-8 h-8 rounded shrink-0 object-contain" src="/assets/images/logo-kawung.png?v=2" alt="Kawung Finance" />
+        <div className="min-w-0">
+          <h1 className="font-bold text-primary text-sm tracking-tight whitespace-nowrap">Finance Management</h1>
+          <p className="text-[11px] text-muted-foreground whitespace-nowrap">Internal Finance Portal</p>
         </div>
       </div>
 
@@ -89,9 +87,7 @@ export default function Sidebar() {
                 </div>
               )}
               {group.items.map((item) => {
-                const active = item.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname.startsWith(item.href);
+                const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
@@ -100,8 +96,7 @@ export default function Sidebar() {
                       active
                         ? "bg-rose-50 text-rose-800 font-semibold"
                         : "text-slate-500 hover:bg-slate-100 font-medium"
-                    }`}
-                  >
+                    }`}>
                     <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                     {item.label}
                   </Link>

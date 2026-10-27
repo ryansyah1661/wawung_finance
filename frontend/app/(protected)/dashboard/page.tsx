@@ -519,9 +519,9 @@ export default function SuperadminDashboard() {
                 ))}
               </ul>
             ) : (
-              <div className="text-center text-slate-400 text-xs py-4">
-                <span className="material-symbols-outlined text-[28px] text-slate-300 block mb-1">task_alt</span>
-                Tidak ada pengajuan yang menunggu approval
+              <div className="flex flex-col items-center justify-center text-slate-400 text-xs py-8">
+                <span className="material-symbols-outlined text-[32px] text-slate-300 mb-1.5">task_alt</span>
+                <span>Tidak ada pengajuan yang menunggu approval</span>
               </div>
             )}
             {pendingCount > 4 && (
@@ -555,9 +555,9 @@ export default function SuperadminDashboard() {
                 ))}
               </ul>
             ) : (
-              <div className="text-center text-slate-400 text-xs py-4">
-                <span className="material-symbols-outlined text-[28px] text-slate-300 block mb-1">receipt_long</span>
-                Belum ada invoice
+              <div className="flex flex-col items-center justify-center text-slate-400 text-xs py-8">
+                <span className="material-symbols-outlined text-[32px] text-slate-300 mb-1.5">receipt_long</span>
+                <span>Belum ada invoice</span>
               </div>
             )}
           </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import DetailSkeleton from '@/components/ui/DetailSkeleton';
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -82,7 +84,7 @@ export default function ReimbursementDetail() {
     }
   };
 
-  if (isLoading) return <div className="p-10 text-center text-slate-500">Loading data...</div>;
+  if (isLoading) return <DetailSkeleton maxWidth="max-w-[1400px]" />;
 
   if (!requestData) {
     return (

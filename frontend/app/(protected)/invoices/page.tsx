@@ -345,7 +345,7 @@ export default function InvoicesPage() {
                                     <p><strong>Jatuh Tempo:</strong> ${invoice.due_date}</p>
                                     <p><strong>Total:</strong> Rp ${Number(invoice.amount || 0).toLocaleString('id-ID')}</p>
                                     <br/>
-                                    <p><em>Dokumen ini di-generate otomatis oleh Wawung Finance.</em></p>
+                                    <p><em>Dokumen ini di-generate otomatis oleh Kawungpitu Finance Management.</em></p>
                                   </body>
                                 </html>
                               `;

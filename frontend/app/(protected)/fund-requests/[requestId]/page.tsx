@@ -1,5 +1,7 @@
 'use client';
 
+import DetailSkeleton from '@/components/ui/DetailSkeleton';
+
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -100,12 +102,7 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   };
 
   if (isLoading) {
-    return (
-      <div className="max-w-[900px] mx-auto py-20 text-center text-slate-500">
-        <span className="material-symbols-outlined text-4xl animate-spin mb-3 block">progress_activity</span>
-        Memuat detail pengajuan...
-      </div>
-    );
+    return <DetailSkeleton maxWidth="max-w-[900px]" />;
   }
 
   if (errorMsg || !data) {

@@ -14,7 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wawung Finance",
+  title: "Kawungpitu Finance Management",
+  icons: {
+    icon: "/assets/images/logo-kawung.png?v=2",
+  },
   description: "Internal Finance Application",
 };
 

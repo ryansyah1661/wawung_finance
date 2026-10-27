@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import PageSkeleton from '@/components/ui/PageSkeleton';
+import DetailSkeleton from '@/components/ui/DetailSkeleton';
 import KawungQrCode from '@/components/KawungQrCode';
 import api from '@/lib/api';
 
@@ -46,7 +46,7 @@ export default function InventoryDetailPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <PageSkeleton />
+        <DetailSkeleton maxWidth="max-w-[1200px]" />
       </div>
     );
   }
