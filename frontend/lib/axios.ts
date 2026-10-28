@@ -1,12 +1,12 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api', // Endpoint API Laravel
+    baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
     headers: {
         'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json',
     },
-    withCredentials: true, // Untuk mengizinkan kirim cookie auth/sanctum
+    withCredentials: true,
 });
 
 export default api;

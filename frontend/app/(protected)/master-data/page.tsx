@@ -29,6 +29,7 @@ export default function MasterDataPage() {
   // UX Modals
   const [infoModal, setInfoModal] = useState({ show: false, message: '', title: 'Informasi', type: 'info' as 'info' | 'success' | 'warning' });
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchMasterData = async () => {
     setLoading(true);
@@ -61,11 +62,12 @@ export default function MasterDataPage() {
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      await api.delete(`/${activeTab}/${deleteConfirm}`);
+      await api.delete(`/categories/${deleteConfirm}`);
       fetchMasterData();
       setDeleteConfirm(null);
       setInfoModal({ show: true, title: 'Berhasil', message: 'Data berhasil dihapus!', type: 'success' });
     } catch (err) {
+      setDeleteConfirm(null);
       setInfoModal({ show: true, title: 'Error', message: 'Gagal menghapus data.', type: 'warning' });
     }
   };

@@ -11,6 +11,7 @@ interface User {
   role: 'superadmin' | 'director' | 'finance' | 'pm';
   department: string | null;
   status?: string;
+  password?: string;
 }
 
 const ROLE_CONFIG: Record<string, { label: string; bg: string; text: string; icon?: string }> = {
@@ -28,9 +29,11 @@ export default function UserManagementPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'pm', department: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'pm', department: '', password: '' });
   const [editUser, setEditUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showAddPassword, setShowAddPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   // Fetch users dari API Backend
   const fetchUsers = async () => {
@@ -115,9 +118,9 @@ export default function UserManagementPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.post('/users', { ...newUser, password: 'password123' });
+      await api.post('/users', { ...newUser, password: newUser.password || 'password123' });
       setIsAddModalOpen(false);
-      setNewUser({ name: '', email: '', role: 'pm', department: '' });
+      setNewUser({ name: '', email: '', role: 'pm', department: '', password: '' });
       fetchUsers();
     } catch (error) {
       console.error('Error adding user', error);
@@ -380,6 +383,29 @@ export default function UserManagementPage() {
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Password <span className="normal-case font-normal text-slate-400 ml-1">(Opsional, default: password123)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showAddPassword ? 'text' : 'password'}
+                    placeholder="Default: password123"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    className="w-full px-3 py-2 pr-10 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(!showAddPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showAddPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
               <div className="pt-4 flex justify-end gap-2">
                 <button
                   type="button"
@@ -455,6 +481,29 @@ export default function UserManagementPage() {
                   onChange={(e) => setEditUser({...editUser, department: e.target.value})}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Password Baru <span className="normal-case font-normal text-slate-400 ml-1">(Kosongkan jika tidak diubah)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showEditPassword ? 'text' : 'password'}
+                    placeholder="Ketik password baru jika ingin diubah..."
+                    value={editUser.password || ''}
+                    onChange={(e) => setEditUser({...editUser, password: e.target.value})}
+                    className="w-full px-3 py-2 pr-10 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showEditPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
               <div className="pt-4 flex justify-end gap-2">
                 <button

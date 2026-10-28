@@ -68,7 +68,8 @@ export default function InventoryDetailPage() {
   const condLabel = status.label;
   const condDotClass = item.status === 'rusak-ringan' ? 'bg-amber-500' : (item.status === 'rusak-berat' || item.status === 'rusak' || item.status === 'damaged') ? 'bg-rose-500' : 'bg-emerald-500';
   const condTextClass = item.status === 'rusak-ringan' ? 'text-amber-700' : (item.status === 'rusak-berat' || item.status === 'rusak' || item.status === 'damaged') ? 'text-rose-700' : 'text-emerald-700';
-  const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/inventory/${item.code}` : '';
+  const detailUrl = typeof window !== 'undefined' ? `${window.location.origin}/scan/${item.code}` : '';
+  const photoUrl = item.photo ? (item.photo.includes('/storage/') ? '/storage/' + item.photo.split('/storage/')[1] : item.photo) : null;
 
   return (
     <div className="max-w-[800px] mx-auto space-y-6">
@@ -149,10 +150,10 @@ export default function InventoryDetailPage() {
             </div>
           )}
 
-          {item.photo && (
+          {photoUrl && (
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Foto Barang</p>
-              <img src={item.photo} alt={item.name} className="mt-2 w-48 h-48 object-cover rounded-xl border border-slate-200 shadow-sm" />
+              <img src={photoUrl} alt={item.name} className="mt-2 w-48 h-48 object-cover rounded-xl border border-slate-200 shadow-sm" />
             </div>
           )}
         </div>
