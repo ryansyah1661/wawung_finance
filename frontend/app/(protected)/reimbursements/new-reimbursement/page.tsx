@@ -17,8 +17,11 @@ export default function NewReimbursementPage() {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [validationError, setValidationError] = useState('');
   const [availableCategories, setAvailableCategories] = useState<{name: string}[]>([]);
+  const [program, setProgram] = useState('');
+  const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
 
   useEffect(() => {
+    // Fetch categories
     fetch('/api/categories')
       .then(res => res.json())
       .then(data => {
@@ -35,6 +38,18 @@ export default function NewReimbursementPage() {
       .catch(() => {
         setAvailableCategories([{name: 'Travel'}, {name: 'Meals & Entertainment'}, {name: 'Office Supplies'}, {name: 'Training & Development'}]);
       });
+
+    // Fetch programs
+    fetch('/api/categories?type=programs&status=active')
+      .then(res => res.json())
+      .then(data => {
+        const progs = data.data || data;
+        if (Array.isArray(progs) && progs.length > 0) {
+          setAvailablePrograms(progs);
+          setProgram(progs[0].name);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,9 +77,12 @@ export default function NewReimbursementPage() {
       // Clean angka amount dari format Rupiah
       const cleanAmount = parseInt(amount.replace(/\D/g, ''), 10);
 
+      const savedUser = typeof window !== 'undefined' ? localStorage.getItem('user_name') : null;
+      const userName = savedUser || 'Superadmin';
+
       const formData = new FormData();
-      formData.append('user_name', 'Ryan Syah');
-      formData.append('department', 'Engineering');
+      formData.append('user_name', userName);
+      formData.append('department', program || 'Umum');
       formData.append('date', expenseDate);
       formData.append('description', description);
       formData.append('amount', cleanAmount.toString());
@@ -149,6 +167,20 @@ export default function NewReimbursementPage() {
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Program</label>
+          <select
+            value={program}
+            onChange={(e) => setProgram(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
+          >
+            <option value="">Pilih Program...</option>
+            {availablePrograms.map((p: any) => (
+              <option key={p.id || p.name} value={p.name}>{p.name}</option>
+            ))}
+          </select>
         </div>
 
         <div>

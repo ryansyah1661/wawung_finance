@@ -35,7 +35,7 @@ export default function ReimbursementsPage() {
       
       const [res, deptRes] = await Promise.all([
         fetch('/api/reimbursements'),
-        fetch('/api/categories?type=departments')
+        fetch('/api/categories?type=programs&status=active')
       ]);
       
       if (!res.ok) throw new Error('Gagal mengambil data dari server');
@@ -86,7 +86,7 @@ export default function ReimbursementsPage() {
         ID: r.request_id || `#${r.id}`,
         Date: r.date || '',
         Employee: r.user_name || r.employee || r.requester || '',
-        Department: r.department || '',
+        Program: r.department || '',
         Description: r.description || '',
         Amount: r.amount || 0,
         Status: r.status || 'Pending'
@@ -200,13 +200,13 @@ export default function ReimbursementsPage() {
           </select>
         </div>
         <div className="w-48">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Program</label>
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer"
           >
-            <option value="All Departments">Semua Departments</option>
+            <option value="All Departments">Semua Program</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.name}>{dept.name}</option>
             ))}
@@ -223,7 +223,7 @@ export default function ReimbursementsPage() {
                 <th className="p-3">ID</th>
                 <th className="p-3">Tanggal</th>
                 <th className="p-3">Pemohon</th>
-                <th className="p-3">Departemen</th>
+                <th className="p-3">Program</th>
                 <th className="p-3">Deskripsi</th>
                 <th className="p-3 text-right">Jumlah</th>
                 <th className="p-3 text-center">Status</th>

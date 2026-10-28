@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import api from "@/lib/api";
 
-type MenuItem = { href: string; label: string; icon: string };
+type MenuItem = { href: string; label: string; icon: string; roles?: string[] };
 type MenuGroup = { title: string; roles?: string[]; items: MenuItem[] };
 
 const MENU_GROUPS: MenuGroup[] = [
@@ -33,7 +33,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "ADMINISTRATION",
     items: [
-      { href: "/user-management", label: "User Management", icon: "group" },
+      { href: "/user-management", label: "User Management", icon: "group", roles: ["superadmin", "director"] },
       { href: "/activity-log", label: "Activity Log", icon: "history" },
     ],
   },
@@ -41,15 +41,26 @@ const MENU_GROUPS: MenuGroup[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState("superadmin");
+  const [userRole, setUserRole] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("user_role") || "superadmin";
+    }
+    return "superadmin";
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userId = localStorage.getItem("user_id") || "2";
-        const res = await api.get(`/users/${userId}`);
-        if (res.data && res.data.role) {
-          setUserRole(res.data.role);
+        const storedRole = localStorage.getItem("user_role");
+        if (storedRole) setUserRole(storedRole);
+
+        const userId = localStorage.getItem("user_id");
+        if (userId) {
+          const res = await api.get(`/users/${userId}`);
+          if (res.data && res.data.role) {
+            setUserRole(res.data.role);
+            localStorage.setItem("user_role", res.data.role);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch user in sidebar", e);
@@ -87,6 +98,9 @@ export default function Sidebar() {
                 </div>
               )}
               {group.items.map((item) => {
+                if (item.roles && !item.roles.map(r => r.toLowerCase()).includes(userRole.toLowerCase())) {
+                  return null;
+                }
                 const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
                 return (
                   <Link

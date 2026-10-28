@@ -187,7 +187,7 @@ export default function ReimbursementDetail() {
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm overflow-hidden">
                     {requestData.proof_file.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                      <img src={`http://127.0.0.1:8000/storage/${requestData.proof_file}`} alt="preview" className="w-full h-full object-cover" />
+                      <img src={`/storage/${requestData.proof_file.replace(/^\/?storage\//, "")}`} alt="preview" className="w-full h-full object-cover" />
                     ) : (
                       <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
                     )}

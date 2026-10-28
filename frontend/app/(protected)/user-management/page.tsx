@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 
@@ -8,7 +9,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'superadmin' | 'director' | 'finance' | 'pm';
+  role: 'superadmin' | 'director' | 'finance' | 'pm' | 'staff_project';
   department: string | null;
   status?: string;
   password?: string;
@@ -19,10 +20,20 @@ const ROLE_CONFIG: Record<string, { label: string; bg: string; text: string; ico
   director: { label: 'Director', bg: 'bg-purple-100', text: 'text-purple-800', icon: 'stars' },
   finance: { label: 'Finance', bg: 'bg-blue-100', text: 'text-blue-800', icon: 'payments' },
   pm: { label: 'PM', bg: 'bg-slate-100', text: 'text-slate-700', icon: 'assignment' },
+  staff_project: { label: 'Staff Project', bg: 'bg-emerald-100', text: 'text-emerald-800', icon: 'badge' },
 };
 
 export default function UserManagementPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Access guard: Hanya Superadmin dan Director yang boleh mengakses User Management
+  useEffect(() => {
+    const role = (localStorage.getItem('user_role') || '').toLowerCase();
+    if (role && role !== 'superadmin' && role !== 'director') {
+      router.replace('/dashboard');
+    }
+  }, [router]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -130,7 +141,7 @@ export default function UserManagementPage() {
     }
   };
 
-  const roleOrder: Record<string, number> = { superadmin: 1, director: 2, finance: 3, pm: 4 };
+  const roleOrder: Record<string, number> = { superadmin: 1, director: 2, finance: 3, pm: 4, staff_project: 5 };
   const filteredUsers = users
     .filter(
       (user) =>
@@ -370,6 +381,7 @@ export default function UserManagementPage() {
                   <option value="director">Director</option>
                   <option value="finance">Finance</option>
                   <option value="pm">Project Manager (PM)</option>
+                  <option value="staff_project">Staff Project</option>
                 </select>
               </div>
               <div>
@@ -469,6 +481,7 @@ export default function UserManagementPage() {
                   <option value="director">Director</option>
                   <option value="finance">Finance</option>
                   <option value="pm">Project Manager (PM)</option>
+                  <option value="staff_project">Staff Project</option>
                 </select>
               </div>
               <div>

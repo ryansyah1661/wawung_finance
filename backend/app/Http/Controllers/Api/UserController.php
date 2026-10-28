@@ -20,7 +20,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'       => 'required|string|max:255',
             'email'      => 'required|email|unique:users,email',
-            'role'       => 'required|in:superadmin,director,finance,pm',
+            'role'       => 'required|in:superadmin,director,finance,pm,staff_project',
             'department' => 'nullable|string|max:255',
             'phone'      => 'nullable|string|max:20',
             'position'   => 'nullable|string|max:255',
@@ -73,7 +73,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'       => 'sometimes|string|max:255',
             'email'      => 'sometimes|email|unique:users,email,' . $user->id,
-            'role'       => 'sometimes|in:superadmin,director,finance,pm',
+            'role'       => 'sometimes|in:superadmin,director,finance,pm,staff_project',
             'department' => 'nullable|string|max:255',
             'phone'      => 'nullable|string|max:20',
             'position'   => 'nullable|string|max:255',
