@@ -187,7 +187,7 @@ export default function MasterDataPage() {
                 <th className="p-3">Nama {activeTab === "programs" ? "Program" : ""}</th>
                 {activeTab === "programs" ? (
                   <>
-                    <th className="p-3 text-right">Pagu Anggaran</th>
+                    <th className="p-3 text-right">Anggaran</th>
                     <th className="p-3 text-right">Terpakai (Approved)</th>
                     <th className="p-3 text-right">Sisa Anggaran</th>
                   </>
@@ -321,7 +321,7 @@ export default function MasterDataPage() {
               {activeTab === "programs" && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Pagu Anggaran / Nominal Program (Rp)
+                    Anggaran / Nominal Program (Rp)
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">Rp</span>
@@ -340,7 +340,8 @@ export default function MasterDataPage() {
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Total alokasi dana program. Dana ini otomatis terpotong saat ada pengajuan yang disetujui (Approved).
+                    Total alokasi dana program. Dana ini otomatis terpotong saat ada pengajuan yang disetujui
+                    (Approved).
                   </p>
                 </div>
               )}
