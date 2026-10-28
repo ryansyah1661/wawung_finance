@@ -14,7 +14,12 @@ class Category extends Model
         'code',
         'name',
         'detail',
+        'budget',
         'type',
         'status',
+    ];
+
+    protected $casts = [
+        'budget' => 'decimal:2',
     ];
 }

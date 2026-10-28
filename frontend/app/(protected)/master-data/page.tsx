@@ -28,6 +28,7 @@ export default function MasterDataPage() {
     code: "",
     name: "",
     detail: "",
+    budget: "",
     status: "active" as "active" | "inactive",
   });
 
@@ -87,7 +88,7 @@ export default function MasterDataPage() {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ code: "", name: "", detail: "", status: "active" });
+    setFormData({ code: "", name: "", detail: "", budget: "", status: "active" });
     setIsModalOpen(true);
   };
 
@@ -97,6 +98,7 @@ export default function MasterDataPage() {
       code: item.code || "",
       name: item.name || item.nama || "",
       detail: item.detail || item.keterangan || "",
+      budget: item.budget ? Number(item.budget).toLocaleString("id-ID") : "",
       status: item.status || "active",
     });
     setIsModalOpen(true);
@@ -105,9 +107,11 @@ export default function MasterDataPage() {
   const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const cleanBudget = formData.budget ? parseFloat(formData.budget.replace(/\./g, "").replace(/,/g, ".")) : 0;
       const payload: any = {
         name: formData.name,
         detail: formData.detail,
+        budget: cleanBudget,
         type: activeTab,
         status: formData.status,
       };
@@ -180,18 +184,26 @@ export default function MasterDataPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="p-3 w-28">Kode / ID</th>
-                <th className="p-3">Nama</th>
-                <th className="p-3">{activeTab === "purposes" ? "Program Terkait" : "Detail"}</th>
+                <th className="p-3">Nama {activeTab === "programs" ? "Program" : ""}</th>
+                {activeTab === "programs" ? (
+                  <>
+                    <th className="p-3 text-right">Pagu Anggaran</th>
+                    <th className="p-3 text-right">Terpakai (Approved)</th>
+                    <th className="p-3 text-right">Sisa Anggaran</th>
+                  </>
+                ) : (
+                  <th className="p-3">{activeTab === "purposes" ? "Program Terkait" : "Detail"}</th>
+                )}
                 <th className="p-3 text-center">Status</th>
                 <th className="p-3 w-24 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <TableSkeleton columns={5} />
+                <TableSkeleton columns={activeTab === "programs" ? 7 : 5} />
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500">
+                  <td colSpan={activeTab === "programs" ? 7 : 5} className="p-8 text-center text-slate-500">
                     Belum ada data di kategori ini.
                   </td>
                 </tr>
@@ -203,8 +215,29 @@ export default function MasterDataPage() {
                         {item.code || "-"}
                       </span>
                     </td>
-                    <td className="p-3 font-medium text-slate-900">{item.name || item.nama}</td>
-                    <td className="p-3 text-slate-500">{item.detail || item.code || item.keterangan || "-"}</td>
+                    <td className="p-3 font-medium text-slate-900">
+                      <div>
+                        {item.name || item.nama}
+                        {activeTab === "programs" && item.detail && (
+                          <p className="text-xs text-slate-400 font-normal">{item.detail}</p>
+                        )}
+                      </div>
+                    </td>
+                    {activeTab === "programs" ? (
+                      <>
+                        <td className="p-3 text-right font-mono font-medium text-slate-800">
+                          Rp {Number(item.budget || 0).toLocaleString("id-ID")}
+                        </td>
+                        <td className="p-3 text-right font-mono text-rose-600 font-medium">
+                          Rp {Number(item.spent || 0).toLocaleString("id-ID")}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-emerald-700">
+                          Rp {Number(item.remaining ?? (item.budget || 0)).toLocaleString("id-ID")}
+                        </td>
+                      </>
+                    ) : (
+                      <td className="p-3 text-slate-500">{item.detail || item.code || item.keterangan || "-"}</td>
+                    )}
                     <td className="p-3 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
@@ -272,7 +305,9 @@ export default function MasterDataPage() {
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Nama {activeTab === "programs" ? "Program" : ""}
+                </label>
                 <input
                   type="text"
                   value={formData.name}
@@ -282,6 +317,33 @@ export default function MasterDataPage() {
                   placeholder="Masukkan nama..."
                 />
               </div>
+
+              {activeTab === "programs" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Pagu Anggaran / Nominal Program (Rp)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">Rp</span>
+                    <input
+                      type="text"
+                      value={formData.budget}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        setFormData({
+                          ...formData,
+                          budget: raw ? Number(raw).toLocaleString("id-ID") : "",
+                        });
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-slate-900 font-mono font-bold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Total alokasi dana program. Dana ini otomatis terpotong saat ada pengajuan yang disetujui (Approved).
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                   {activeTab === "purposes" ? "Program Terkait" : "Detail / Keterangan"}

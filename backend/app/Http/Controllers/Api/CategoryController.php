@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\FundRequest;
+use App\Models\Reimbursement;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -26,6 +28,26 @@ class CategoryController extends Controller
 
         $categories = $query->latest()->get();
 
+        // Jika terdapat data tipe 'programs', hitung realisasi & sisa anggaran secara real-time
+        $categories->transform(function ($cat) {
+            if ($cat->type === 'programs') {
+                $fundSpent = (float) FundRequest::whereRaw('LOWER(department) = ?', [strtolower(trim($cat->name))])
+                    ->whereRaw('LOWER(status) = ?', ['approved'])
+                    ->sum('amount');
+
+                $reimbSpent = (float) Reimbursement::whereRaw('LOWER(department) = ?', [strtolower(trim($cat->name))])
+                    ->whereRaw('LOWER(status) = ?', ['approved'])
+                    ->sum('amount');
+
+                $totalSpent = $fundSpent + $reimbSpent;
+                $budget = (float) ($cat->budget ?? 0);
+
+                $cat->spent = $totalSpent;
+                $cat->remaining = max(0, $budget - $totalSpent);
+            }
+            return $cat;
+        });
+
         return response()->json([
             'success' => true,
             'data' => $categories
@@ -38,9 +60,14 @@ class CategoryController extends Controller
             'code'   => 'nullable|string|unique:categories,code',
             'name'   => 'required|string',
             'detail' => 'nullable|string',
+            'budget' => 'nullable|numeric|min:0',
             'type'   => 'required|string|in:accounts,categories,departments,vendors,programs,purposes,inventory_categories',
             'status' => 'nullable|string|in:active,inactive'
         ]);
+
+        if (!isset($validated['budget'])) {
+            $validated['budget'] = 0;
+        }
 
         if (empty($validated['code'])) {
             $validated['code'] = 'CAT-' . strtoupper(substr($validated['type'], 0, 3)) . '-' . time() . '-' . rand(10, 99);
@@ -68,6 +95,7 @@ class CategoryController extends Controller
             'code'   => 'sometimes|string|unique:categories,code,' . $category->id,
             'name'   => 'sometimes|string',
             'detail' => 'nullable|string',
+            'budget' => 'nullable|numeric|min:0',
             'type'   => 'sometimes|string|in:accounts,categories,departments,vendors,programs,purposes,inventory_categories',
             'status' => 'sometimes|string|in:active,inactive'
         ]);

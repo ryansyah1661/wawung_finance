@@ -335,6 +335,41 @@ export default function NewFundRequestPage() {
                   </option>
                 ))}
               </select>
+
+              {/* Info Sisa Pagu Anggaran Program */}
+              {(() => {
+                const prog = programs.find((p: any) => p.name === department);
+                if (!prog || Number(prog.budget || 0) <= 0) return null;
+                const remaining = Number(prog.remaining ?? (prog.budget || 0));
+                const budget = Number(prog.budget || 0);
+                const spent = Number(prog.spent || 0);
+                const isOver = grandTotal > remaining;
+
+                return (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span className="material-symbols-outlined text-[16px] text-emerald-600">account_balance_wallet</span>
+                        <span>Sisa Anggaran:</span>
+                        <strong className="text-emerald-700 font-mono font-bold">
+                          Rp {remaining.toLocaleString("id-ID")}
+                        </strong>
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        Pagu: Rp {budget.toLocaleString("id-ID")} | Terpakai: Rp {spent.toLocaleString("id-ID")}
+                      </div>
+                    </div>
+                    {isOver && (
+                      <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-800 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">warning</span>
+                        <span>
+                          <strong>Peringatan:</strong> Total pengajuan (Rp {grandTotal.toLocaleString("id-ID")}) melebihi sisa anggaran program ini (Rp {remaining.toLocaleString("id-ID")}).
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
