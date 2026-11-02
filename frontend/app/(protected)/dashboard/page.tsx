@@ -348,9 +348,9 @@ export default function SuperadminDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-70">
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <div className="flex-1 min-h-64">
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -416,8 +416,9 @@ export default function SuperadminDashboard() {
             </ResponsiveContainer>
           </div>
           {chartData.every((d) => d.pemasukan === 0 && d.pengeluaran === 0) && (
-            <div className="text-center text-slate-400 text-xs py-2 -mt-4">
-              Grafik akan terisi otomatis setelah Anda menambahkan transaksi
+            <div className="text-center text-slate-400 text-xs pt-3 mt-3 border-t border-slate-100 flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-slate-400">info</span>
+              <span>Grafik akan terisi otomatis setelah Anda menambahkan transaksi</span>
             </div>
           )}
         </div>
