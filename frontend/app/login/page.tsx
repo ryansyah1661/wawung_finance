@@ -3,28 +3,41 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { isSessionValid, clearAuthSession, setAuthSession } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // Redirect ke dashboard jika sudah login & server valid
+  // Periksa status sesi & alasan redirect (expired/idle/logout)
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    if (userId) {
-      api.get(`/users/${userId}`)
-        .then(() => {
-          router.replace('/dashboard');
-        })
-        .catch(() => {
-          // Server offline atau user tidak valid, bersihkan sesi usang
-          localStorage.removeItem('user_id');
-          localStorage.removeItem('user_name');
-          localStorage.removeItem('user_email');
-          localStorage.removeItem('user_role');
-          localStorage.removeItem('user_department');
-          localStorage.removeItem('user_phone');
-          localStorage.removeItem('user_position');
-        });
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const reason = params.get('reason');
+      if (reason === 'expired') {
+        setNoticeMessage('Sesi login Anda telah berakhir demi keamanan. Silakan masuk kembali.');
+      } else if (reason === 'idle') {
+        setNoticeMessage('Anda telah keluar otomatis karena tidak ada aktivitas selama 1 jam. Silakan masuk kembali.');
+      } else if (reason === 'logout') {
+        setNoticeMessage('Anda telah berhasil keluar dari akun.');
+      }
+
+      // Hanya auto-redirect jika sesi benar-benar masih aktif
+      const session = isSessionValid();
+      if (session.valid) {
+        const userId = localStorage.getItem('user_id');
+        if (userId) {
+          api.get(`/users/${userId}`)
+            .then(() => {
+              router.replace('/dashboard');
+            })
+            .catch(() => {
+              clearAuthSession();
+            });
+        }
+      } else {
+        // Jika sesi sudah usang / expired, hapus sisa data storage
+        clearAuthSession();
+      }
     }
   }, [router]);
   
@@ -37,6 +50,7 @@ export default function LoginPage() {
   // State Status
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,15 +61,8 @@ export default function LoginPage() {
       const res = await api.post('/login', { email, password });
 
       if (res.data?.user) {
-        // Simpan data user ke localStorage
-        const user = res.data.user;
-        localStorage.setItem('user_id', String(user.id));
-        localStorage.setItem('user_name', user.name);
-        localStorage.setItem('user_email', user.email);
-        localStorage.setItem('user_role', user.role);
-        localStorage.setItem('user_department', user.department || '');
-        localStorage.setItem('user_phone', user.phone || '');
-        localStorage.setItem('user_position', user.position || '');
+        // Simpan sesi dengan batas waktu (2 jam default, atau 7 hari jika Ingat Saya dicentang)
+        setAuthSession(res.data.user, rememberMe);
 
         // Pindah route ke Dashboard
         router.push('/dashboard');
@@ -111,6 +118,14 @@ export default function LoginPage() {
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">Selamat Datang</h2>
             </div>
             <p className="text-sm text-slate-500 mb-8">Login untuk mengakses Internal Finance Kawung</p>
+
+            {/* Security Notice Message */}
+            {noticeMessage && (
+              <div className="mb-6 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-[20px] text-amber-600 shrink-0">lock_clock</span>
+                <span className="font-medium">{noticeMessage}</span>
+              </div>
+            )}
 
             {/* Error Message */}
             {errorMessage && (

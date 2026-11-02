@@ -1,55 +1,76 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "./layout/Sidebar";
 import TopNav from "./layout/TopNav";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import api from "@/lib/api";
+import { isSessionValid, clearAuthSession, updateLastActivity } from "@/lib/auth";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  const handleLogoutExpired = useCallback((reason: string) => {
+    clearAuthSession();
+    setIsAuthenticated(false);
+    router.replace(`/login?reason=${reason}`);
+  }, [router]);
+
   useEffect(() => {
     const verifyAuth = async () => {
-      const userId = localStorage.getItem('user_id');
-
-      // 1. Tidak ada data login di localStorage → langsung redirect
-      if (!userId) {
-        router.replace('/login');
+      // 1. Cek validitas sesi berdasarkan batas waktu & aktivitas
+      const session = isSessionValid();
+      if (!session.valid) {
+        handleLogoutExpired(session.reason || 'expired');
         setChecking(false);
         return;
       }
 
-      // 2. Ada data localStorage → verifikasi ke backend bahwa server hidup & user valid
+      const userId = localStorage.getItem('user_id');
+
+      // 2. Verifikasi ke backend bahwa server hidup & user valid
       try {
         const res = await api.get(`/users/${userId}`);
         if (res.data && (res.data.id || res.data.data?.id)) {
-          // Server merespons & user ditemukan → sesi valid
           setIsAuthenticated(true);
+          updateLastActivity();
         } else {
           throw new Error('User tidak ditemukan');
         }
       } catch (err: any) {
-        // Server mati / user tidak valid → hapus data sesi & redirect ke login
         console.warn('Auth verification failed:', err.message || err);
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_name');
-        localStorage.removeItem('user_email');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('user_department');
-        localStorage.removeItem('user_phone');
-        localStorage.removeItem('user_position');
-        router.replace('/login');
+        handleLogoutExpired('expired');
       } finally {
         setChecking(false);
       }
     };
 
     verifyAuth();
-  }, [router]);
+
+    // 3. Listener aktivitas user untuk memperbarui waktu aktif (idle detection)
+    const onUserActivity = () => {
+      updateLastActivity();
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach((evt) => window.addEventListener(evt, onUserActivity, { passive: true }));
+
+    // 4. Timer interval untuk auto-logout jika tab dibiarkan terbuka melewati batas sesi / idle
+    const interval = setInterval(() => {
+      const check = isSessionValid();
+      if (!check.valid) {
+        handleLogoutExpired(check.reason || 'expired');
+      }
+    }, 15000);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, onUserActivity));
+      clearInterval(interval);
+    };
+  }, [router, handleLogoutExpired]);
 
   if (checking || !isAuthenticated) {
     return (

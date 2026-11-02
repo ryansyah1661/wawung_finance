@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { clearAuthSession } from '@/lib/auth';
 
 export default function TopNav() {
   const router = useRouter();
@@ -36,15 +37,8 @@ export default function TopNav() {
 
   const handleLogout = () => {
     setIsDropdownOpen(false);
-    // Bersihkan semua data user dari localStorage
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user_department');
-    localStorage.removeItem('user_phone');
-    localStorage.removeItem('user_position');
-    router.push('/login');
+    clearAuthSession();
+    router.push('/login?reason=logout');
   };
 
   // Inisial nama pengguna
