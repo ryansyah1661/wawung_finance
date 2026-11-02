@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\FundRequest;
 use App\Models\Reimbursement;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -39,7 +40,11 @@ class CategoryController extends Controller
                     ->whereRaw('LOWER(status) = ?', ['approved'])
                     ->sum('amount');
 
-                $totalSpent = $fundSpent + $reimbSpent;
+                $trxSpent = (float) Transaction::whereRaw('LOWER(program) = ?', [strtolower(trim($cat->name))])
+                    ->whereRaw('LOWER(type) = ?', ['expense'])
+                    ->sum('amount');
+
+                $totalSpent = $fundSpent + $reimbSpent + $trxSpent;
                 $budget = (float) ($cat->budget ?? 0);
 
                 $cat->spent = $totalSpent;

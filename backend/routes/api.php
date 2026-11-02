@@ -27,8 +27,7 @@ Route::apiResource('departments', DepartmentController::class);
 Route::apiResource('clients', ClientController::class);
 
 // Transactions
-Route::get('/transactions', [TransactionController::class, 'index']);
-Route::post('/transactions', [TransactionController::class, 'store']);
+Route::apiResource('transactions', TransactionController::class);
 
 // Fund Requests
 Route::apiResource('fund-requests', FundRequestController::class);

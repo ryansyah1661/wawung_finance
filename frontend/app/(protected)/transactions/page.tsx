@@ -15,10 +15,12 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All Types');
   const [filterCategory, setFilterCategory] = useState('All Categories');
+  const [filterProgram, setFilterProgram] = useState('All Programs');
   const [filterDate, setFilterDate] = useState('');
   const [allTransactions, setAllTransactions] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [programs, setPrograms] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
 
@@ -57,22 +59,27 @@ export default function TransactionsPage() {
         String(t.id).toLowerCase().includes(searchQuery.toLowerCase());
       const matchType = filterType === 'All Types' || t.type?.toLowerCase() === filterType.toLowerCase();
       const matchCategory = filterCategory === 'All Categories' || t.category === filterCategory;
+      const matchProgram = filterProgram === 'All Programs' || (t.program || '') === filterProgram;
       const matchDate = !filterDate || t.date === filterDate;
-      return matchSearch && matchType && matchCategory && matchDate;
+      return matchSearch && matchType && matchCategory && matchProgram && matchDate;
     });
 
     setTransactions(filtered);
-  }, [searchQuery, filterType, filterCategory, filterDate, allTransactions]);
+  }, [searchQuery, filterType, filterCategory, filterProgram, filterDate, allTransactions]);
 
   // Fetch categories & accounts dari Master Data API
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [catRes, accRes] = await Promise.all([
+        const [progRes, catRes, accRes] = await Promise.all([
+          api.get('/categories?type=programs&status=active').catch(() => ({ data: [] })),
           api.get('/categories?type=categories&status=active').catch(() => ({ data: [] })),
           api.get('/categories?type=accounts&status=active').catch(() => ({ data: [] })),
         ]);
         
+        const progData = progRes.data || [];
+        setPrograms(Array.isArray(progData) ? progData : progData.data || []);
+
         const catData = catRes.data || [];
         setCategories(Array.isArray(catData) ? catData : catData.data || []);
         
@@ -105,6 +112,7 @@ export default function TransactionsPage() {
       const res = await api.put(`/transactions/${editData.id}`, {
         date: editData.date,
         description: editData.description,
+        program: editData.program || null,
         category: editData.category,
         account: editData.account,
         type: editData.type,
@@ -216,6 +224,7 @@ export default function TransactionsPage() {
             setSearchQuery('');
             setFilterType('All Types');
             setFilterCategory('All Categories');
+            setFilterProgram('All Programs');
             setFilterDate('');
           }}
           title="Reset Filters"
@@ -236,6 +245,7 @@ export default function TransactionsPage() {
                 </th>
                 <th className="p-3">Tanggal</th>
                 <th className="p-3">Keterangan</th>
+                <th className="p-3">Program</th>
                 <th className="p-3">Kategori</th>
                 <th className="p-3">Akun</th>
                 <th className="p-3 text-right">Jumlah</th>
@@ -244,10 +254,10 @@ export default function TransactionsPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <TableSkeleton columns={7} />
+                <TableSkeleton columns={8} />
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400">Tidak ada transaksi ditemukan.</td>
+                  <td colSpan={8} className="p-6 text-center text-slate-400">Tidak ada transaksi ditemukan.</td>
                 </tr>
               ) : (
                 transactions.map((trx: any) => (
@@ -257,6 +267,15 @@ export default function TransactionsPage() {
                     </td>
                     <td className="p-3 text-slate-500">{trx.date}</td>
                     <td className="p-3 font-medium text-slate-900">{trx.description}</td>
+                    <td className="p-3">
+                      {trx.program ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">
+                          {trx.program}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${trx.type?.toLowerCase() === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
                         {trx.category}
@@ -415,6 +434,20 @@ export default function TransactionsPage() {
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Program</label>
+                <select
+                  value={editData.program || ''}
+                  onChange={(e) => setEditData({ ...editData, program: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none"
+                >
+                  <option value="">-- Tanpa Program (Umum) --</option>
+                  {programs.map((p: any) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

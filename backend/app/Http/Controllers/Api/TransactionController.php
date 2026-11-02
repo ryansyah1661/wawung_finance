@@ -17,7 +17,16 @@ class TransactionController extends Controller
         $query = Transaction::query();
 
         if ($request->has('search')) {
-            $query->where('description', 'like', '%' . $request->search . '%');
+            $query->where(function ($q) use ($request) {
+                $q->where('description', 'like', '%' . $request->search . '%')
+                  ->orWhere('program', 'like', '%' . $request->search . '%')
+                  ->orWhere('category', 'like', '%' . $request->search . '%')
+                  ->orWhere('account', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->has('program') && !empty($request->program)) {
+            $query->where('program', $request->program);
         }
 
         return response()->json([
@@ -34,6 +43,7 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'description' => 'required|string',
+            'program' => 'nullable|string',
             'category' => 'required|string',
             'account' => 'required|string',
             'type' => 'required|string',
@@ -74,6 +84,7 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'date' => 'sometimes|date',
             'description' => 'sometimes|string',
+            'program' => 'nullable|string',
             'category' => 'sometimes|string',
             'account' => 'sometimes|string',
             'type' => 'sometimes|string',

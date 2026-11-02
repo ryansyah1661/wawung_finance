@@ -26,6 +26,7 @@ export default function SuperadminDashboard() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [dueInvoices, setDueInvoices] = useState<any[]>([]);
+  const [activePrograms, setActivePrograms] = useState<any[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ name: string; amount: number; color: string }[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,17 +54,19 @@ export default function SuperadminDashboard() {
         setLoading(true);
 
         // Fetch paralel dari API Laravel
-        const [resTrx, resFR, resRB, resInv] = await Promise.all([
+        const [resTrx, resFR, resRB, resInv, resProg] = await Promise.all([
           api.get("/transactions").catch(() => ({ data: [] })),
           api.get("/fund-requests").catch(() => ({ data: [] })),
           api.get("/reimbursements").catch(() => ({ data: [] })),
           api.get("/invoices").catch(() => ({ data: [] })),
+          api.get("/categories?type=programs&status=active").catch(() => ({ data: [] })),
         ]);
 
         const rawTrx = resTrx.data || [];
         const rawFR = resFR.data || [];
         const rawRB = resRB.data || [];
         const rawInv = resInv.data || [];
+        const rawProg = resProg.data || [];
 
         const transactions = Array.isArray(rawTrx)
           ? rawTrx
@@ -96,6 +99,13 @@ export default function SuperadminDashboard() {
             : Array.isArray(rawInv?.data?.data)
               ? rawInv.data.data
               : [];
+
+        const progs = Array.isArray(rawProg)
+          ? rawProg
+          : Array.isArray(rawProg?.data)
+            ? rawProg.data
+            : [];
+        setActivePrograms(progs);
 
         // 1. OLAH DATA TRANSAKSI
         let incomeTotal = 0;
@@ -568,6 +578,101 @@ export default function SuperadminDashboard() {
 
         {/* Sidebar Cards */}
         <div className="flex flex-col gap-6">
+          {/* Program & Project Berjalan Card */}
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <span className="material-symbols-outlined text-[20px]">rocket_launch</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Project & Program Berjalan</h3>
+                  <p className="text-[11px] text-slate-500">Monitoring realisasi pagu program aktif</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                {activePrograms.length} Aktif
+              </span>
+            </div>
+
+            {activePrograms.length > 0 ? (
+              <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
+                {activePrograms.map((prog: any, idx: number) => {
+                  const budget = Number(prog.budget || 0);
+                  const spent = Number(prog.spent || 0);
+                  const remaining = Number(prog.remaining ?? (budget > 0 ? Math.max(0, budget - spent) : 0));
+                  const percent = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+
+                  return (
+                    <div
+                      key={prog.id || idx}
+                      className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-primary/40 hover:bg-slate-50/80 transition-all space-y-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-slate-900 truncate tracking-tight">{prog.name}</h4>
+                          {prog.detail && (
+                            <p className="text-[10px] text-slate-500 truncate">{prog.detail}</p>
+                          )}
+                        </div>
+                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700">
+                          Berjalan
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div>
+                        <div className="flex justify-between items-center text-[10px] mb-1">
+                          <span className="text-slate-500 font-medium">Realisasi Anggaran</span>
+                          <span className="font-mono font-bold text-slate-700">{percent}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              percent >= 90 ? "bg-rose-500" : percent >= 70 ? "bg-amber-500" : "bg-primary"
+                            }`}
+                            style={{ width: `${Math.max(percent, budget > 0 ? 3 : 0)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Budget Numbers */}
+                      <div className="pt-1 flex items-center justify-between text-xs border-t border-slate-200/60 font-mono">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase tracking-wider">Terpakai</span>
+                          <span className="font-semibold text-rose-600">
+                            Rp {spent.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 block uppercase tracking-wider">Sisa Pagu</span>
+                          <span className="font-bold text-emerald-700">
+                            {budget > 0 ? `Rp ${remaining.toLocaleString("id-ID")}` : "Belum diatur"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-400 text-xs py-8">
+                <span className="material-symbols-outlined text-[32px] text-slate-300 mb-1.5">folder_open</span>
+                <span>Belum ada data program aktif</span>
+              </div>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => router.push("/master-data")}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                Kelola Program di Master Data <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
           {/* Menunggu Approval List */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">

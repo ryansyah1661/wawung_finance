@@ -26,12 +26,14 @@ export default function InputTransactionPage() {
   // Form States
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [program, setProgram] = useState('');
   const [category, setCategory] = useState('');
   const [account, setAccount] = useState('');
   const [date, setDate] = useState(getTodayDate());
   const [notes, setNotes] = useState('');
 
   // States untuk menyimpan Data dari API
+  const [programsList, setProgramsList] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [accountsList, setAccountsList] = useState<any[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
@@ -42,14 +44,17 @@ export default function InputTransactionPage() {
       try {
         setLoadingMaster(true);
         // Memanggil API dengan query parameter type dan status active
-        const [resCategories, resAccounts] = await Promise.all([
+        const [resPrograms, resCategories, resAccounts] = await Promise.all([
+          api.get('/categories?type=programs&status=active').catch(() => ({ data: [] })),
           api.get('/categories?type=categories&status=active').catch(() => ({ data: [] })),
           api.get('/categories?type=accounts&status=active').catch(() => ({ data: [] }))
         ]);
 
+        const progData = resPrograms.data || [];
         const catData = resCategories.data || [];
         const accData = resAccounts.data || [];
 
+        setProgramsList(Array.isArray(progData) ? progData : progData.data || []);
         setCategoriesList(Array.isArray(catData) ? catData : catData.data || []);
         setAccountsList(Array.isArray(accData) ? accData : accData.data || []);
       } catch (error) {
@@ -76,6 +81,7 @@ export default function InputTransactionPage() {
       const res = await api.post('/transactions', {
         date,
         description,
+        program: program || null,
         category,
         account,
         amount: numericAmount,
@@ -175,6 +181,44 @@ export default function InputTransactionPage() {
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm cursor-pointer"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Program</label>
+          <select
+            value={program}
+            onChange={(e) => setProgram(e.target.value)}
+            disabled={loadingMaster}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm appearance-none cursor-pointer disabled:bg-slate-50"
+          >
+            <option value="">{loadingMaster ? 'Memuat data program...' : 'Pilih program...'}</option>
+            {programsList.map((item: any) => (
+              <option key={item.id} value={item.name || item.nama}>
+                {item.name || item.nama}
+              </option>
+            ))}
+          </select>
+          {(() => {
+            const prog = programsList.find((p: any) => p.name === program);
+            if (!prog || Number(prog.budget || 0) <= 0) return null;
+            const remaining = Number(prog.remaining ?? (prog.budget || 0));
+            const budget = Number(prog.budget || 0);
+            const spent = Number(prog.spent || 0);
+            return (
+              <div className="mt-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <span className="material-symbols-outlined text-[16px] text-emerald-600">account_balance_wallet</span>
+                  <span>Sisa Anggaran:</span>
+                  <strong className="text-emerald-700 font-mono font-bold">
+                    Rp {remaining.toLocaleString('id-ID')}
+                  </strong>
+                </div>
+                <div className="text-[11px] text-emerald-700">
+                  Pagu: Rp {budget.toLocaleString('id-ID')} | Terpakai: Rp {spent.toLocaleString('id-ID')}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
