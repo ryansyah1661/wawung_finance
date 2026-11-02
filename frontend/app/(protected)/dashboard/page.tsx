@@ -602,23 +602,33 @@ export default function SuperadminDashboard() {
                 {activePrograms.map((prog: any, idx: number) => {
                   const budget = Number(prog.budget || 0);
                   const spent = Number(prog.spent || 0);
-                  const remaining = Number(prog.remaining ?? (budget > 0 ? Math.max(0, budget - spent) : 0));
-                  const percent = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+                  const remaining = Number(prog.remaining ?? (budget > 0 ? (budget - spent) : 0));
+                  const percent = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+                  const isOver = budget > 0 && remaining < 0;
 
                   return (
                     <div
                       key={prog.id || idx}
-                      className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-primary/40 hover:bg-slate-50/80 transition-all space-y-2.5"
+                      onClick={() => prog.id && router.push(`/master-data/project-rab/${prog.id}`)}
+                      className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-primary/40 hover:bg-slate-50/80 transition-all space-y-2.5 cursor-pointer group"
+                      title="Klik untuk melihat rincian hierarki LFA & RAB"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-slate-900 truncate tracking-tight">{prog.name}</h4>
+                          <h4 className="text-xs font-bold text-slate-900 truncate tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                            <span>{prog.name}</span>
+                            <span className="material-symbols-outlined text-[13px] text-slate-400 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                              open_in_new
+                            </span>
+                          </h4>
                           {prog.detail && (
                             <p className="text-[10px] text-slate-500 truncate">{prog.detail}</p>
                           )}
                         </div>
-                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700">
-                          Berjalan
+                        <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          isOver ? "bg-rose-100 text-rose-700 font-extrabold" : "bg-blue-50 text-blue-700"
+                        }`}>
+                          {isOver ? "⚠️ Over Pagu" : "Berjalan"}
                         </span>
                       </div>
 
@@ -648,7 +658,7 @@ export default function SuperadminDashboard() {
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 block uppercase tracking-wider">Sisa Pagu</span>
-                          <span className="font-bold text-emerald-700">
+                          <span className={`font-bold ${remaining < 0 ? "text-rose-600" : "text-emerald-700"}`}>
                             {budget > 0 ? `Rp ${remaining.toLocaleString("id-ID")}` : "Belum diatur"}
                           </span>
                         </div>

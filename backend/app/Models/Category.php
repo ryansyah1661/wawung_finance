@@ -22,4 +22,9 @@ class Category extends Model
     protected $casts = [
         'budget' => 'decimal:2',
     ];
+
+    public function outcomes()
+    {
+        return $this->hasMany(ProjectOutcome::class, 'program_id')->orderBy('order_num')->orderBy('id');
+    }
 }

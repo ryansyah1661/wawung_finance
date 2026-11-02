@@ -212,6 +212,24 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Program</span>
               <span className="text-sm text-slate-700">{data.department || '-'}</span>
             </div>
+            {data.outcome && (
+              <div className="flex justify-between items-start py-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Outcome</span>
+                <span className="text-sm font-medium text-slate-800">{data.outcome.name}</span>
+              </div>
+            )}
+            {data.output && (
+              <div className="flex justify-between items-start py-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Output</span>
+                <span className="text-sm font-medium text-slate-800">{data.output.name}</span>
+              </div>
+            )}
+            {data.activity && (
+              <div className="flex justify-between items-start py-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Aktivitas</span>
+                <span className="text-sm font-medium text-slate-800">{data.activity.name}</span>
+              </div>
+            )}
             <div className="flex justify-between items-start py-2 border-b border-slate-100">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Dibutuhkan</span>
               <span className="text-sm text-slate-700">{displayDate}</span>

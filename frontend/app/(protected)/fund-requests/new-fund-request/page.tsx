@@ -7,6 +7,7 @@ import api from "@/lib/api";
 
 interface RabItem {
   id: string;
+  component_id?: number | null;
   komponen: string;
   qty: number | string;
   satuan: string;
@@ -16,6 +17,7 @@ interface RabItem {
   total: number;
   keterangan: string;
   kodeKategori: string;
+  remainingBudget?: number | null;
 }
 
 export default function NewFundRequestPage() {
@@ -32,10 +34,19 @@ export default function NewFundRequestPage() {
   const [description, setDescription] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
 
-  // Tabel Komponen / RAB (Lengkap dengan Keterangan & ID Kode Kategori)
+  // Hierarki LFA: Outcome -> Output -> Activity -> Components
+  const [outcomes, setOutcomes] = useState<any[]>([]);
+  const [selectedOutcomeId, setSelectedOutcomeId] = useState<number | "">("");
+  const [selectedOutputId, setSelectedOutputId] = useState<number | "">("");
+  const [selectedActivityId, setSelectedActivityId] = useState<number | "">("");
+  const [availableComponents, setAvailableComponents] = useState<any[]>([]);
+  const [loadingHierarchy, setLoadingHierarchy] = useState(false);
+
+  // Tabel Komponen / RAB
   const [items, setItems] = useState<RabItem[]>([
     {
       id: "1",
+      component_id: null,
       komponen: "",
       qty: 1,
       satuan: "",
@@ -45,6 +56,7 @@ export default function NewFundRequestPage() {
       total: 0,
       keterangan: "",
       kodeKategori: "",
+      remainingBudget: null,
     },
   ]);
 
@@ -60,8 +72,41 @@ export default function NewFundRequestPage() {
     return p.detail.trim().toLowerCase() === department.trim().toLowerCase();
   });
 
+  // Fetch Hierarchy for selected Program
+  const fetchProgramHierarchy = async (programName: string, programList: any[] = programs) => {
+    const prog = programList.find((p: any) => p.name === programName);
+    if (!prog || !prog.id) {
+      setOutcomes([]);
+      setSelectedOutcomeId("");
+      setSelectedOutputId("");
+      setSelectedActivityId("");
+      setAvailableComponents([]);
+      return;
+    }
+
+    try {
+      setLoadingHierarchy(true);
+      const res = await api.get(`/programs/${prog.id}/hierarchy`);
+      if (res.data?.success) {
+        const oList = res.data.outcomes || [];
+        setOutcomes(oList);
+        setSelectedOutcomeId("");
+        setSelectedOutputId("");
+        setSelectedActivityId("");
+        setAvailableComponents([]);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil hierarki program:", err);
+      setOutcomes([]);
+    } finally {
+      setLoadingHierarchy(false);
+    }
+  };
+
   const handleProgramChange = (selectedProg: string) => {
     setDepartment(selectedProg);
+
+    // Match Purpose
     const matching = purposes.filter((p: any) => {
       if (!p.detail || p.detail === "Semua Program" || p.detail === "Umum") return true;
       return p.detail.trim().toLowerCase() === selectedProg.trim().toLowerCase();
@@ -71,6 +116,38 @@ export default function NewFundRequestPage() {
     } else {
       setPurpose("");
     }
+
+    // Fetch Hierarchy
+    fetchProgramHierarchy(selectedProg);
+  };
+
+  // Outcome / Output / Activity Selection handlers
+  const handleOutcomeChange = (oId: number | "") => {
+    setSelectedOutcomeId(oId);
+    setSelectedOutputId("");
+    setSelectedActivityId("");
+    setAvailableComponents([]);
+  };
+
+  const handleOutputChange = (outId: number | "") => {
+    setSelectedOutputId(outId);
+    setSelectedActivityId("");
+    setAvailableComponents([]);
+  };
+
+  const handleActivityChange = (actId: number | "") => {
+    setSelectedActivityId(actId);
+    if (!actId) {
+      setAvailableComponents([]);
+      return;
+    }
+
+    const curOutcome = outcomes.find((o) => o.id === selectedOutcomeId);
+    const curOutput = curOutcome?.outputs?.find((out: any) => out.id === selectedOutputId);
+    const curActivity = curOutput?.activities?.find((a: any) => a.id === actId);
+
+    const comps = curActivity?.components || [];
+    setAvailableComponents(comps);
   };
 
   // Prefill applicant from localStorage & Fetch programs and purposes
@@ -80,16 +157,18 @@ export default function NewFundRequestPage() {
 
     const fetchDropdownData = async () => {
       let initialProg = "";
+      let progList: any[] = [];
 
       // 1. Fetch Programs murni dari database
       try {
         const res = await api.get("/categories?type=programs&status=active");
         const data = res.data?.data || res.data;
-        const progList = Array.isArray(data) ? data : [];
+        progList = Array.isArray(data) ? data : [];
         setPrograms(progList);
         if (progList.length > 0) {
           initialProg = progList[0].name;
           setDepartment(initialProg);
+          fetchProgramHierarchy(initialProg, progList);
         }
       } catch (err) {
         console.error("Gagal mengambil program dari database:", err);
@@ -164,11 +243,55 @@ export default function NewFundRequestPage() {
     });
   };
 
+  // Pilih dari komponen template RAB yang tersedia
+  const handleSelectComponent = (index: number, componentIdStr: string) => {
+    if (!componentIdStr || componentIdStr === "custom") {
+      setItems((prev) => {
+        const next = [...prev];
+        next[index] = {
+          ...next[index],
+          component_id: null,
+          remainingBudget: null,
+        };
+        return next;
+      });
+      return;
+    }
+
+    const compId = parseInt(componentIdStr, 10);
+    const selectedComp = availableComponents.find((c: any) => c.id === compId);
+    if (!selectedComp) return;
+
+    setItems((prev) => {
+      const next = [...prev];
+      const qty = selectedComp.qty || 1;
+      const freq = selectedComp.freq || 1;
+      const unitPrice = selectedComp.unit_price || 0;
+      const total = qty * freq * unitPrice;
+
+      next[index] = {
+        ...next[index],
+        component_id: selectedComp.id,
+        komponen: selectedComp.name,
+        qty: qty,
+        satuan: selectedComp.unit || "paket",
+        freq: freq,
+        satuanFreq: selectedComp.freq_unit || "kali",
+        biayaSatuan: Math.round(unitPrice).toLocaleString("id-ID"),
+        total: total,
+        keterangan: selectedComp.description || "",
+        remainingBudget: selectedComp.remaining,
+      };
+      return next;
+    });
+  };
+
   const addRow = () => {
     setItems((prev) => [
       ...prev,
       {
         id: String(Date.now()),
+        component_id: null,
         komponen: "",
         qty: 1,
         satuan: "",
@@ -178,6 +301,7 @@ export default function NewFundRequestPage() {
         total: 0,
         keterangan: "",
         kodeKategori: "",
+        remainingBudget: null,
       },
     ]);
   };
@@ -227,6 +351,7 @@ export default function NewFundRequestPage() {
 
       const cleanItems = filledItems.map((item, idx) => ({
         no: idx + 1,
+        component_id: item.component_id || null,
         komponen: item.komponen,
         qty: typeof item.qty === "string" ? parseFloat(item.qty) || 0 : item.qty,
         satuan: item.satuan,
@@ -248,32 +373,40 @@ export default function NewFundRequestPage() {
       formData.append("applicant_name", applicantName);
       formData.append("department", department);
       formData.append("items", JSON.stringify(cleanItems));
+
+      // Kirim id hierarki LFA jika dipilih
+      if (selectedOutcomeId) formData.append("outcome_id", String(selectedOutcomeId));
+      if (selectedOutputId) formData.append("output_id", String(selectedOutputId));
+      if (selectedActivityId) formData.append("activity_id", String(selectedActivityId));
+
       if (description) formData.append("description", description);
       if (attachment) formData.append("attachment", attachment);
 
-      const res = await api.post("/fund-requests", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      await api.post("/fund-requests", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      if (res.data?.success || res.status === 200 || res.status === 201) {
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          router.push("/fund-requests");
-        }, 1500);
-      } else {
-        throw new Error(res.data?.message || "Gagal mengirimkan pengajuan dana ke server.");
-      }
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        router.push("/fund-requests");
+      }, 1500);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || "Terjadi kesalahan sistem saat menyimpan data.");
+      console.error(err);
+      setErrorMsg(err.response?.data?.message || "Gagal membuat pengajuan dana. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Helper untuk mendapatkan list output dan activity dari state hierarki
+  const currentOutcome = outcomes.find((o) => o.id === selectedOutcomeId);
+  const currentOutputs = currentOutcome?.outputs || [];
+  const currentOutput = currentOutputs.find((out: any) => out.id === selectedOutputId);
+  const currentActivities = currentOutput?.activities || [];
+  const currentActivity = currentActivities.find((a: any) => a.id === selectedActivityId);
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+    <div className="max-w-[1080px] mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -283,7 +416,7 @@ export default function NewFundRequestPage() {
         </Link>
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Pengajuan Dana Baru</h2>
-          <p className="text-sm text-slate-500">Ajukan permintaan dana dan rincian anggaran biaya operasional</p>
+          <p className="text-sm text-slate-500">Ajukan permintaan dana berdasarkan struktur hierarki proyek & RAB</p>
         </div>
       </div>
 
@@ -300,7 +433,7 @@ export default function NewFundRequestPage() {
         <div className="space-y-4">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
             <span className="material-symbols-outlined text-primary text-[18px]">person</span>
-            Informasi Pemohon
+            Informasi Pemohon & Program
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -419,7 +552,100 @@ export default function NewFundRequestPage() {
           </div>
         </div>
 
-        {/* Section 2: Tabel Rincian Anggaran Biaya (RAB) */}
+        {/* Section 2: Pemilihan Hierarki Proyek (Outcome -> Output -> Aktivitas) */}
+        {outcomes.length > 0 && (
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[18px]">account_tree</span>
+                Alokasi Hierarki LFA Proyek
+              </h3>
+              <span className="text-xs text-slate-400">Pilih aktivitas agar komponen biaya terisi otomatis</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
+              {/* 1. Pilih Outcome */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  1. Outcome
+                </label>
+                <select
+                  value={selectedOutcomeId}
+                  onChange={(e) => handleOutcomeChange(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-xs focus:outline-none focus:border-primary">
+                  <option value="">-- Pilih Outcome --</option>
+                  {outcomes.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.code ? `[${o.code}] ` : ""}
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Pilih Output */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  2. Output
+                </label>
+                <select
+                  disabled={!selectedOutcomeId}
+                  value={selectedOutputId}
+                  onChange={(e) => handleOutputChange(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-xs focus:outline-none focus:border-primary disabled:bg-slate-100 disabled:text-slate-400">
+                  <option value="">-- Pilih Output --</option>
+                  {currentOutputs.map((out: any) => (
+                    <option key={out.id} value={out.id}>
+                      {out.code ? `[${out.code}] ` : ""}
+                      {out.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Pilih Aktivitas */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  3. Aktivitas Kunci
+                </label>
+                <select
+                  disabled={!selectedOutputId}
+                  value={selectedActivityId}
+                  onChange={(e) => handleActivityChange(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-xs focus:outline-none focus:border-primary disabled:bg-slate-100 disabled:text-slate-400">
+                  <option value="">-- Pilih Aktivitas --</option>
+                  {currentActivities.map((act: any) => (
+                    <option key={act.id} value={act.id}>
+                      {act.code ? `[${act.code}] ` : ""}
+                      {act.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Info Aktivitas Terpilih */}
+            {currentActivity && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-700 text-base">task_alt</span>
+                  <span className="font-semibold text-amber-900">
+                    Aktivitas: {currentActivity.name}
+                  </span>
+                </div>
+                <div className="font-mono text-amber-900 flex items-center gap-3">
+                  <span>Pagu: Rp {Number(currentActivity.budget || 0).toLocaleString("id-ID")}</span>
+                  <span>Serapan: Rp {Number(currentActivity.spent || 0).toLocaleString("id-ID")}</span>
+                  <span className="font-bold text-emerald-800">
+                    Sisa: Rp {Number(currentActivity.remaining || 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Section 3: Tabel Rincian Anggaran Biaya (RAB) */}
         <div className="space-y-3 pt-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -427,6 +653,12 @@ export default function NewFundRequestPage() {
                 <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
                 Rincian Anggaran Biaya (RAB)
               </h3>
+              {availableComponents.length > 0 && (
+                <p className="text-xs text-emerald-700 font-medium mt-0.5">
+                  ✓ Tersedia {availableComponents.length} komponen RAB dari aktivitas terpilih. Anda dapat memilihnya
+                  di kolom Komponen.
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -438,128 +670,176 @@ export default function NewFundRequestPage() {
           </div>
 
           <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
-            <table className="w-full text-left text-xs border-collapse min-w-[980px]">
+            <table className="w-full text-left text-xs border-collapse min-w-[1180px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3 px-2 w-8 text-center">No.</th>
-                  <th className="py-3 px-3 min-w-[160px]">Komponen</th>
-                  <th className="py-3 px-2 w-16 text-center">Qty</th>
+                  {availableComponents.length > 0 && (
+                    <th className="py-3 px-2 min-w-[170px]">Pilih Dari RAB</th>
+                  )}
+                  <th className="py-3 px-3 min-w-[190px]">Nama Komponen / Uraian</th>
+                  <th className="py-3 px-2 w-20 text-center">Qty</th>
                   <th className="py-3 px-2 w-24">Satuan</th>
-                  <th className="py-3 px-2 w-16 text-center">Freq</th>
+                  <th className="py-3 px-2 w-20 text-center">Freq</th>
                   <th className="py-3 px-2 w-24">Satuan</th>
-                  <th className="py-3 px-2.5 min-w-[120px] text-right">Biaya Satuan (Rp)</th>
-                  <th className="py-3 px-2.5 min-w-[130px] text-right">Total Biaya (Rp)</th>
+                  <th className="py-3 px-2.5 min-w-[130px] text-right">Biaya Satuan (Rp)</th>
+                  <th className="py-3 px-2.5 min-w-[140px] text-right">Total Biaya (Rp)</th>
                   <th className="py-3 px-3 min-w-[170px]">Keterangan</th>
-                  <th className="py-3 px-2.5 min-w-[160px]">ID (Kode Kategori)</th>
-                  <th className="py-3 px-2 w-10 text-center">Aksi</th>
+                  <th className="py-3 px-2.5 min-w-[160px]">Kode Kategori</th>
+                  <th className="py-3 px-2 w-12 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {items.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-2.5 px-2 text-center text-slate-400 font-medium">{index + 1}</td>
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="text"
-                        value={item.komponen}
-                        onChange={(e) => handleItemChange(index, "komponen", e.target.value)}
-                        placeholder="Contoh: Sewa ruangan / Konsumsi"
-                        className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={item.qty}
-                        onChange={(e) => handleItemChange(index, "qty", e.target.value)}
-                        placeholder="0"
-                        className="w-full text-center bg-white border border-slate-200 rounded-md px-1.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <input
-                        type="text"
-                        value={item.satuan}
-                        onChange={(e) => handleItemChange(index, "satuan", e.target.value)}
-                        placeholder="unit, orang"
-                        className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={item.freq}
-                        onChange={(e) => handleItemChange(index, "freq", e.target.value)}
-                        placeholder="1"
-                        className="w-full text-center bg-white border border-slate-200 rounded-md px-1.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <input
-                        type="text"
-                        value={item.satuanFreq}
-                        onChange={(e) => handleItemChange(index, "satuanFreq", e.target.value)}
-                        placeholder="kali, desa"
-                        className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2.5">
-                      <input
-                        type="text"
-                        value={item.biayaSatuan}
-                        onChange={(e) => handleItemChange(index, "biayaSatuan", e.target.value)}
-                        placeholder="0"
-                        className="w-full text-right bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono placeholder:text-slate-400"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2.5 text-right">
-                      <span className="font-mono font-bold text-slate-900 text-xs">
-                        Rp {item.total.toLocaleString("id-ID")}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="text"
-                        value={item.keterangan}
-                        onChange={(e) => handleItemChange(index, "keterangan", e.target.value)}
-                        placeholder="Contoh: biaya sewa & kebersihan"
-                        className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
-                      />
-                    </td>
-                    <td className="py-2.5 px-2.5">
-                      <select
-                        value={item.kodeKategori}
-                        onChange={(e) => handleItemChange(index, "kodeKategori", e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs cursor-pointer font-mono">
-                        <option value="">Pilih ID / Kategori...</option>
-                        {rabCategories.map((k: any) => (
-                          <option key={k.id || k.code || k.name} value={k.code}>
-                            {k.code} - {k.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-2.5 px-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeRow(index)}
-                        disabled={items.length <= 1}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        title="Hapus baris">
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {items.map((item, index) => {
+                  const isOverRemaining =
+                    item.remainingBudget !== null &&
+                    item.remainingBudget !== undefined &&
+                    item.total > item.remainingBudget;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`hover:bg-slate-50/70 transition-colors ${
+                        isOverRemaining ? "bg-amber-50/40" : ""
+                      }`}>
+                      <td className="py-2.5 px-2 text-center text-slate-400 font-medium">{index + 1}</td>
+
+                      {/* Dropdown template RAB jika ada aktivitas yang dipilih */}
+                      {availableComponents.length > 0 && (
+                        <td className="py-2.5 px-2">
+                          <select
+                            value={item.component_id || ""}
+                            onChange={(e) => handleSelectComponent(index, e.target.value)}
+                            className="w-full bg-emerald-50/50 border border-emerald-300 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-medium cursor-pointer">
+                            <option value="">-- Pilih Template RAB --</option>
+                            {availableComponents.map((c: any) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                            <option value="custom">(Item Kustom / Bebas)</option>
+                          </select>
+                        </td>
+                      )}
+
+                      <td className="py-2.5 px-3">
+                        <input
+                          type="text"
+                          value={item.komponen}
+                          onChange={(e) => handleItemChange(index, "komponen", e.target.value)}
+                          placeholder="Contoh: Sewa ruangan / Tim Leader"
+                          className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
+                        />
+                        {isOverRemaining && (
+                          <span className="text-[10px] text-amber-700 block mt-0.5 font-medium">
+                            ⚠️ Melebihi sisa pagu komponen (Sisa: Rp{" "}
+                            {Math.round(item.remainingBudget || 0).toLocaleString("id-ID")})
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-2.5 px-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={item.qty}
+                          onChange={(e) => handleItemChange(index, "qty", e.target.value)}
+                          placeholder="0"
+                          className="w-full text-center bg-white border border-slate-200 rounded-md px-1.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2">
+                        <input
+                          type="text"
+                          value={item.satuan}
+                          onChange={(e) => handleItemChange(index, "satuan", e.target.value)}
+                          placeholder="orang, unit"
+                          className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={item.freq}
+                          onChange={(e) => handleItemChange(index, "freq", e.target.value)}
+                          placeholder="1"
+                          className="w-full text-center bg-white border border-slate-200 rounded-md px-1.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2">
+                        <input
+                          type="text"
+                          value={item.satuanFreq}
+                          onChange={(e) => handleItemChange(index, "satuanFreq", e.target.value)}
+                          placeholder="bulan, kali"
+                          className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2.5">
+                        <input
+                          type="text"
+                          value={item.biayaSatuan}
+                          onChange={(e) => handleItemChange(index, "biayaSatuan", e.target.value)}
+                          placeholder="0"
+                          className="w-full text-right bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs font-mono placeholder:text-slate-400"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2.5 text-right">
+                        <span className="font-mono font-bold text-slate-900 text-xs">
+                          Rp {item.total.toLocaleString("id-ID")}
+                        </span>
+                      </td>
+
+                      <td className="py-2.5 px-3">
+                        <input
+                          type="text"
+                          value={item.keterangan}
+                          onChange={(e) => handleItemChange(index, "keterangan", e.target.value)}
+                          placeholder="Contoh: deffa / biaya sewa"
+                          className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs placeholder:text-slate-400"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-2.5">
+                        <select
+                          value={item.kodeKategori}
+                          onChange={(e) => handleItemChange(index, "kodeKategori", e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-900 focus:outline-none focus:border-primary text-xs cursor-pointer font-mono">
+                          <option value="">Pilih Kategori...</option>
+                          {rabCategories.map((k: any) => (
+                            <option key={k.id || k.code || k.name} value={k.code}>
+                              {k.code} - {k.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td className="py-2.5 px-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeRow(index)}
+                          disabled={items.length <= 1}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          title="Hapus baris">
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-slate-50/80 border-t-2 border-slate-200">
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={availableComponents.length > 0 ? 8 : 7}
                     className="py-3 px-4 text-right font-bold text-slate-700 uppercase tracking-wider text-xs">
                     Total Biaya Komponen:
                   </td>
@@ -590,7 +870,7 @@ export default function NewFundRequestPage() {
           </div>
         </div>
 
-        {/* Section 3: Keterangan Tambahan & Lampiran */}
+        {/* Section 4: Keterangan Tambahan & Lampiran */}
         <div className="space-y-4 pt-2">
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -661,7 +941,7 @@ export default function NewFundRequestPage() {
           <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">info</span>
           <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
             Pengajuan dana RAB ini akan tercatat dengan status <span className="font-semibold">Pending Approval</span>{" "}
-            dan memerlukan verifikasi serta persetujuan dari Pengelola Dana / Finance Admin.
+            dan secara otomatis terhubung dengan serapan anggaran program setelah diverifikasi dan disetujui.
           </p>
         </div>
 
@@ -699,7 +979,7 @@ export default function NewFundRequestPage() {
               <span className="material-symbols-outlined text-[32px]">check_circle</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil Diajukan!</h3>
-            <p className="text-slate-500 text-sm mb-6">Pengajuan dana beserta rincian RAB berhasil dibuat.</p>
+            <p className="text-slate-500 text-sm mb-6">Pengajuan dana beserta alokasi hierarki RAB berhasil dibuat.</p>
           </div>
         </div>
       )}

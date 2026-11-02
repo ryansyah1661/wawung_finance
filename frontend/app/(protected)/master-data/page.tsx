@@ -1,22 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import api from "@/lib/api";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 
-type TabKey = "accounts" | "categories" | "inventory_categories" | "vendors" | "programs" | "purposes";
+type TabKey = "programs" | "accounts" | "inventory_categories" | "categories" | "purposes";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: "accounts", label: "Akun Bank/Kas", icon: "account_balance" },
-  { key: "categories", label: "Kategori Transaksi", icon: "category" },
-  { key: "inventory_categories", label: "Kategori Barang", icon: "inventory_2" },
-  { key: "vendors", label: "Vendor/Klien", icon: "storefront" },
   { key: "programs", label: "Program", icon: "assignment" },
+  { key: "accounts", label: "Akun Bank/Kas", icon: "account_balance" },
+  { key: "inventory_categories", label: "Kategori Barang", icon: "inventory_2" },
+  { key: "categories", label: "Kategori Transaksi", icon: "category" },
   { key: "purposes", label: "Keperluan", icon: "task" },
 ];
 
 export default function MasterDataPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("categories");
+  const [activeTab, setActiveTab] = useState<TabKey>("programs");
   const [masterData, setMasterData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [programList, setProgramList] = useState<string[]>([]);
@@ -250,6 +250,17 @@ export default function MasterDataPage() {
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-center gap-1">
+                        {activeTab === "programs" && (
+                          <Link
+                            href={`/master-data/project-rab/${item.id}`}
+                            className="p-1.5 text-primary hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                            title="Kelola Struktur LFA & RAB">
+                            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+                              account_tree
+                            </span>
+                            <span className="hidden lg:inline">RAB</span>
+                          </Link>
+                        )}
                         <button
                           onClick={() => handleOpenEdit(item)}
                           className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"

@@ -14,6 +14,9 @@ class FundRequest extends Model
         'need_date',
         'applicant_name',
         'department',
+        'outcome_id',
+        'output_id',
+        'activity_id',
         'purpose',
         'description',
         'amount',
@@ -28,4 +31,19 @@ class FundRequest extends Model
         'amount'    => 'decimal:2',
         'items'     => 'array',
     ];
+
+    public function outcome()
+    {
+        return $this->belongsTo(ProjectOutcome::class, 'outcome_id');
+    }
+
+    public function output()
+    {
+        return $this->belongsTo(ProjectOutput::class, 'output_id');
+    }
+
+    public function activity()
+    {
+        return $this->belongsTo(ProjectActivity::class, 'activity_id');
+    }
 }

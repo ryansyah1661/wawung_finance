@@ -12,7 +12,7 @@ class FundRequestController extends Controller
 {
     public function index()
     {
-        $requests = FundRequest::orderBy('created_at', 'desc')->get();
+        $requests = FundRequest::with(['outcome', 'output', 'activity'])->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'success' => true,
@@ -31,6 +31,9 @@ class FundRequestController extends Controller
             'amount'         => 'required|numeric|min:0',
             'items'          => 'nullable',
             'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'outcome_id'     => 'nullable|integer',
+            'output_id'      => 'nullable|integer',
+            'activity_id'    => 'nullable|integer',
         ]);
 
         if (isset($validated['items']) && is_string($validated['items'])) {
@@ -62,7 +65,7 @@ class FundRequestController extends Controller
 
     public function show($id)
     {
-        $fundRequest = FundRequest::find($id);
+        $fundRequest = FundRequest::with(['outcome', 'output', 'activity'])->find($id);
 
         if (!$fundRequest) {
             return response()->json(['success' => false, 'message' => 'Data tidak ditemukan'], 404);
@@ -88,6 +91,9 @@ class FundRequestController extends Controller
             'amount'         => 'sometimes|numeric|min:0',
             'items'          => 'nullable',
             'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'outcome_id'     => 'nullable|integer',
+            'output_id'      => 'nullable|integer',
+            'activity_id'    => 'nullable|integer',
         ]);
 
         if (isset($validated['items']) && is_string($validated['items'])) {
