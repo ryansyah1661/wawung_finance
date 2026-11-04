@@ -188,9 +188,24 @@ class ProjectHierarchyController extends Controller
         ]);
     }
 
+    /**
+     * Verifikasi hak akses: Hanya Superadmin, Director, dan PM yang dapat input/edit struktur LFA & RAB
+     */
+    private function authorizeRabAccess(Request $request)
+    {
+        $role = strtolower(trim($request->header('X-User-Role') ?? $request->input('user_role') ?? ''));
+        if (!empty($role) && !in_array($role, ['superadmin', 'director', 'pm'])) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Hanya Superadmin, Director, dan PM yang dapat mengelola struktur LFA & RAB.'
+            ], 403));
+        }
+    }
+
     // ==================== OUTCOME CRUD ====================
     public function storeOutcome(Request $request, $programId)
     {
+        $this->authorizeRabAccess($request);
         $validated = $request->validate([
             'code'        => 'nullable|string',
             'name'        => 'required|string',
@@ -205,6 +220,7 @@ class ProjectHierarchyController extends Controller
 
     public function updateOutcome(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $outcome = ProjectOutcome::findOrFail($id);
         $validated = $request->validate([
             'code'        => 'nullable|string',
@@ -216,8 +232,9 @@ class ProjectHierarchyController extends Controller
         return response()->json(['success' => true, 'data' => $outcome]);
     }
 
-    public function deleteOutcome($id)
+    public function deleteOutcome(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $outcome = ProjectOutcome::findOrFail($id);
         $outcome->delete();
         return response()->json(['success' => true, 'message' => 'Outcome berhasil dihapus']);
@@ -226,6 +243,7 @@ class ProjectHierarchyController extends Controller
     // ==================== OUTPUT CRUD ====================
     public function storeOutput(Request $request, $outcomeId)
     {
+        $this->authorizeRabAccess($request);
         $validated = $request->validate([
             'code'        => 'nullable|string',
             'name'        => 'required|string',
@@ -240,6 +258,7 @@ class ProjectHierarchyController extends Controller
 
     public function updateOutput(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $output = ProjectOutput::findOrFail($id);
         $validated = $request->validate([
             'code'        => 'nullable|string',
@@ -251,8 +270,9 @@ class ProjectHierarchyController extends Controller
         return response()->json(['success' => true, 'data' => $output]);
     }
 
-    public function deleteOutput($id)
+    public function deleteOutput(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $output = ProjectOutput::findOrFail($id);
         $output->delete();
         return response()->json(['success' => true, 'message' => 'Output berhasil dihapus']);
@@ -261,6 +281,7 @@ class ProjectHierarchyController extends Controller
     // ==================== ACTIVITY CRUD ====================
     public function storeActivity(Request $request, $outputId)
     {
+        $this->authorizeRabAccess($request);
         $validated = $request->validate([
             'code'        => 'nullable|string',
             'name'        => 'required|string',
@@ -275,6 +296,7 @@ class ProjectHierarchyController extends Controller
 
     public function updateActivity(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $activity = ProjectActivity::findOrFail($id);
         $validated = $request->validate([
             'code'        => 'nullable|string',
@@ -286,8 +308,9 @@ class ProjectHierarchyController extends Controller
         return response()->json(['success' => true, 'data' => $activity]);
     }
 
-    public function deleteActivity($id)
+    public function deleteActivity(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $activity = ProjectActivity::findOrFail($id);
         $activity->delete();
         return response()->json(['success' => true, 'message' => 'Activity berhasil dihapus']);
@@ -306,6 +329,7 @@ class ProjectHierarchyController extends Controller
 
     public function storeComponent(Request $request, $activityId)
     {
+        $this->authorizeRabAccess($request);
         $validated = $request->validate([
             'code'        => 'nullable|string',
             'name'        => 'required|string',
@@ -328,6 +352,7 @@ class ProjectHierarchyController extends Controller
 
     public function updateComponent(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $comp = ActivityComponent::findOrFail($id);
         $validated = $request->validate([
             'code'        => 'nullable|string',
@@ -351,8 +376,9 @@ class ProjectHierarchyController extends Controller
         return response()->json(['success' => true, 'data' => $comp]);
     }
 
-    public function deleteComponent($id)
+    public function deleteComponent(Request $request, $id)
     {
+        $this->authorizeRabAccess($request);
         $comp = ActivityComponent::findOrFail($id);
         $comp->delete();
         return response()->json(['success' => true, 'message' => 'Komponen berhasil dihapus']);

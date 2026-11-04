@@ -89,6 +89,16 @@ export default function ProjectRabPage() {
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<ProgramInfo | null>(null);
   const [outcomes, setOutcomes] = useState<OutcomeItem[]>([]);
+  const [userRole, setUserRole] = useState<string>("superadmin");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const role = (localStorage.getItem("user_role") || "superadmin").toLowerCase();
+      setUserRole(role);
+    }
+  }, []);
+
+  const canEditRAB = ["superadmin", "director", "pm"].includes(userRole);
 
   // Expand / collapse states
   const [collapsedOutcomes, setCollapsedOutcomes] = useState<Record<number, boolean>>({});
@@ -155,10 +165,10 @@ export default function ProjectRabPage() {
     title: string;
   } | null>(null);
 
-  const fetchHierarchy = async () => {
+  const fetchHierarchy = async (showSkeleton = false) => {
     if (!programId) return;
     try {
-      setLoading(true);
+      if (showSkeleton) setLoading(true);
       const res = await api.get(`/programs/${programId}/hierarchy`);
       if (res.data?.success) {
         setProgram(res.data.program);
@@ -173,12 +183,12 @@ export default function ProjectRabPage() {
         type: "warning",
       });
     } finally {
-      setLoading(false);
+      if (showSkeleton) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHierarchy();
+    fetchHierarchy(true);
   }, [programId]);
 
   // Toggle helpers
@@ -315,7 +325,7 @@ export default function ProjectRabPage() {
       }
 
       setModalType(null);
-      await fetchHierarchy();
+      await fetchHierarchy(false);
       setInfoModal({
         show: true,
         title: "Berhasil",
@@ -353,23 +363,24 @@ export default function ProjectRabPage() {
     setAddingCompActivityId(null);
   };
 
-  const handleSaveNewRow = async (activityId: number) => {
+  // Helper penyimpanan baris baru ke server (tanpa skeleton reload)
+  const saveNewRowToServer = async (activityId: number): Promise<boolean> => {
     if (!newRow.name.trim()) {
       alert("Nama komponen biaya harus diisi!");
-      return;
+      return false;
     }
 
     const priceNum = parseFloat(String(newRow.unit_price).replace(/\D/g, "")) || 0;
     if (priceNum <= 0) {
       alert("Harga satuan harus lebih dari Rp 0!");
-      return;
+      return false;
     }
 
     try {
       setIsSavingRow(true);
       const payload = {
         code: newRow.code || null,
-        name: newRow.name,
+        name: newRow.name.trim(),
         qty: parseFloat(String(newRow.qty)) || 1,
         unit: newRow.unit || "paket",
         freq: parseFloat(String(newRow.freq)) || 1,
@@ -379,14 +390,54 @@ export default function ProjectRabPage() {
       };
 
       await api.post(`/activities/${activityId}/components`, payload);
-      setAddingCompActivityId(null);
-      await fetchHierarchy();
+      await fetchHierarchy(false);
+      return true;
     } catch (err: any) {
       console.error(err);
       alert(err?.response?.data?.message || "Gagal menyimpan baris komponen.");
+      return false;
     } finally {
       setIsSavingRow(false);
     }
+  };
+
+  // Tombol "+ Tambah Baris Komponen":
+  // Jika sedang mengisi baris di activity ini, simpan baris tersebut lalu langsung buka baris baru di bawahnya!
+  // Jika belum, buka form baris baru tanpa mereset jika tidak sengaja tertekan.
+  const handleAddOrContinueRow = async (activityId: number) => {
+    if (addingCompActivityId === activityId) {
+      if (newRow.name.trim() || newRow.unit_price) {
+        const saved = await saveNewRowToServer(activityId);
+        if (saved) {
+          // Reset form dan tetap buka form input baris berikutnya
+          setNewRow({
+            code: "",
+            name: "",
+            qty: "1",
+            unit: "paket",
+            freq: "1",
+            freq_unit: "kali",
+            unit_price: "",
+            description: "",
+          });
+          setAddingCompActivityId(activityId);
+        }
+      }
+    } else {
+      handleStartAddRow(activityId);
+    }
+  };
+
+  // Simpan baris ini dan tutup form input baris baru
+  const handleSaveAndFinishRow = async (activityId: number) => {
+    const saved = await saveNewRowToServer(activityId);
+    if (saved) {
+      setAddingCompActivityId(null);
+    }
+  };
+
+  const handleSaveNewRow = async (activityId: number) => {
+    await handleSaveAndFinishRow(activityId);
   };
 
   const handleStartEditRow = (comp: ComponentItem) => {
@@ -436,7 +487,7 @@ export default function ProjectRabPage() {
 
       await api.put(`/components/${editRow.id}`, payload);
       setEditingCompId(null);
-      await fetchHierarchy();
+      await fetchHierarchy(false);
     } catch (err: any) {
       console.error(err);
       alert(err?.response?.data?.message || "Gagal memperbarui baris komponen.");
@@ -461,7 +512,7 @@ export default function ProjectRabPage() {
       }
 
       setDeleteConfirm(null);
-      await fetchHierarchy();
+      await fetchHierarchy(false);
       setInfoModal({
         show: true,
         title: "Berhasil",
@@ -521,14 +572,31 @@ export default function ProjectRabPage() {
             <span className="material-symbols-outlined text-sm">unfold_less</span>
             Tutup Semua
           </button>
-          <button
-            onClick={handleOpenAddOutcome}
-            className="px-4 py-2 text-xs sm:text-sm font-semibold bg-primary text-white rounded-xl hover:bg-primary-dark transition-all flex items-center gap-1.5 shadow-sm shadow-primary/20 cursor-pointer">
-            <span className="material-symbols-outlined text-base">add</span>
-            Tambah Outcome
-          </button>
+          {canEditRAB && (
+            <button
+              onClick={handleOpenAddOutcome}
+              className="px-4 py-2 text-xs sm:text-sm font-semibold bg-primary text-white rounded-xl hover:bg-primary-dark transition-all flex items-center gap-1.5 shadow-sm shadow-primary/20 cursor-pointer">
+              <span className="material-symbols-outlined text-base">add</span>
+              Tambah Outcome
+            </button>
+          )}
         </div>
       </div>
+
+            {/* Read-Only Notice jika role bukan superadmin, director, pm */}
+      {!canEditRAB && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-center gap-3 text-amber-900 text-xs shadow-xs">
+          <span className="material-symbols-outlined text-xl text-amber-600">lock</span>
+          <div>
+            <span className="font-bold">Mode Tinjauan (Read-Only):</span> Anda saat ini masuk dengan role{" "}
+            <span className="font-mono uppercase font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+              {userRole}
+            </span>
+            . Input dan perubahan hierarki LFA & RAB hanya dapat dilakukan oleh{" "}
+            <strong>Superadmin, Director, dan PM</strong>.
+          </div>
+        </div>
+      )}
 
       {/* Program Summary KPI Cards */}
       {program && (
@@ -610,12 +678,14 @@ export default function ProjectRabPage() {
               Mulai dengan menambahkan <strong>Outcome</strong> pertama untuk program ini. Di bawah Outcome, Anda dapat
               menambahkan Output, Aktivitas, dan Komponen Biaya (RAB).
             </p>
-            <button
-              onClick={handleOpenAddOutcome}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-all shadow-sm cursor-pointer">
-              <span className="material-symbols-outlined text-lg">add</span>
-              Tambah Outcome Baru
-            </button>
+            {canEditRAB && (
+              <button
+                onClick={handleOpenAddOutcome}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-all shadow-sm cursor-pointer">
+                <span className="material-symbols-outlined text-lg">add</span>
+                Tambah Outcome Baru
+              </button>
+            )}
           </div>
         ) : (
           outcomes.map((outcome, oIdx) => {
@@ -754,33 +824,35 @@ export default function ProjectRabPage() {
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
-                                  <button
-                                    onClick={() => handleOpenAddActivity(output.id, output.activities.length)}
-                                    className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs px-2 py-1 rounded font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                                    title="Tambah Aktivitas">
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                    <span className="hidden sm:inline">Aktivitas</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEdit("output", output)}
-                                    className="text-slate-400 hover:text-slate-700 p-1 rounded cursor-pointer"
-                                    title="Edit Output">
-                                    <span className="material-symbols-outlined text-base">edit</span>
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      setDeleteConfirm({
-                                        type: "output",
-                                        id: output.id,
-                                        title: `Output: ${output.name}`,
-                                      })
-                                    }
-                                    className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer"
-                                    title="Hapus Output">
-                                    <span className="material-symbols-outlined text-base">delete</span>
-                                  </button>
-                                </div>
+                                {canEditRAB && (
+                                  <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+                                    <button
+                                      onClick={() => handleOpenAddActivity(output.id, output.activities.length)}
+                                      className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs px-2 py-1 rounded font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="Tambah Aktivitas">
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                      <span className="hidden sm:inline">Aktivitas</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenEdit("output", output)}
+                                      className="text-slate-400 hover:text-slate-700 p-1 rounded cursor-pointer"
+                                      title="Edit Output">
+                                      <span className="material-symbols-outlined text-base">edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        setDeleteConfirm({
+                                          type: "output",
+                                          id: output.id,
+                                          title: `Output: ${output.name}`,
+                                        })
+                                      }
+                                      className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer"
+                                      title="Hapus Output">
+                                      <span className="material-symbols-outlined text-base">delete</span>
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -845,26 +917,28 @@ export default function ProjectRabPage() {
                                               </span>
                                             </div>
 
-                                            <div className="flex items-center gap-1 border-l border-amber-200 pl-2">
-                                              <button
-                                                onClick={() => handleOpenEdit("activity", activity)}
-                                                className="text-slate-400 hover:text-slate-700 p-1 rounded cursor-pointer"
-                                                title="Edit Aktivitas">
-                                                <span className="material-symbols-outlined text-base">edit</span>
-                                              </button>
-                                              <button
-                                                onClick={() =>
-                                                  setDeleteConfirm({
-                                                    type: "activity",
-                                                    id: activity.id,
-                                                    title: `Aktivitas: ${activity.name}`,
-                                                  })
-                                                }
-                                                className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer"
-                                                title="Hapus Aktivitas">
-                                                <span className="material-symbols-outlined text-base">delete</span>
-                                              </button>
-                                            </div>
+                                            {canEditRAB && (
+                                              <div className="flex items-center gap-1 border-l border-amber-200 pl-2">
+                                                <button
+                                                  onClick={() => handleOpenEdit("activity", activity)}
+                                                  className="text-slate-400 hover:text-slate-700 p-1 rounded cursor-pointer"
+                                                  title="Edit Aktivitas">
+                                                  <span className="material-symbols-outlined text-base">edit</span>
+                                                </button>
+                                                <button
+                                                  onClick={() =>
+                                                    setDeleteConfirm({
+                                                      type: "activity",
+                                                      id: activity.id,
+                                                      title: `Aktivitas: ${activity.name}`,
+                                                    })
+                                                  }
+                                                  className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer"
+                                                  title="Hapus Aktivitas">
+                                                  <span className="material-symbols-outlined text-base">delete</span>
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
 
@@ -884,13 +958,29 @@ export default function ProjectRabPage() {
                                                   ({activity.components.length} Komponen)
                                                 </span>
                                               </div>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleStartAddRow(activity.id)}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors cursor-pointer self-start sm:self-auto">
-                                                <span className="material-symbols-outlined text-[16px]">add</span>
-                                                Tambah Baris Komponen
-                                              </button>
+                                              {canEditRAB && (
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                  <button
+                                                    type="button"
+                                                    disabled={isSavingRow}
+                                                    onClick={() => handleAddOrContinueRow(activity.id)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50">
+                                                    <span className="material-symbols-outlined text-[16px]">add</span>
+                                                    {isSavingRow && isAddingThis ? "Menyimpan..." : "Tambah Baris Komponen"}
+                                                  </button>
+                                                  {isAddingThis && (
+                                                    <button
+                                                      type="button"
+                                                      disabled={isSavingRow}
+                                                      onClick={() => handleSaveAndFinishRow(activity.id)}
+                                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors cursor-pointer shadow-xs"
+                                                      title="Simpan baris ini dan selesai input">
+                                                      <span className="material-symbols-outlined text-[16px]">check</span>
+                                                      Simpan Selesai
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
                                             </div>
 
                                             {/* TABEL SESUAI GAMBAR 1 */}
@@ -1098,32 +1188,36 @@ export default function ProjectRabPage() {
                                                           {comp.description || "-"}
                                                         </td>
                                                         <td className="py-2.5 px-2 text-center">
-                                                          <div className="flex items-center justify-center gap-1">
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => handleStartEditRow(comp)}
-                                                              className="p-1 text-slate-400 hover:text-primary hover:bg-slate-100 rounded transition-colors cursor-pointer"
-                                                              title="Edit Komponen">
-                                                              <span className="material-symbols-outlined text-[17px]">
-                                                                edit
-                                                              </span>
-                                                            </button>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() =>
-                                                                setDeleteConfirm({
-                                                                  type: "component",
-                                                                  id: comp.id,
-                                                                  title: `Komponen: ${comp.name}`,
-                                                                })
-                                                              }
-                                                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                                                              title="Hapus Komponen">
-                                                              <span className="material-symbols-outlined text-[17px]">
-                                                                delete
-                                                              </span>
-                                                            </button>
-                                                          </div>
+                                                          {canEditRAB ? (
+                                                            <div className="flex items-center justify-center gap-1">
+                                                              <button
+                                                                type="button"
+                                                                onClick={() => handleStartEditRow(comp)}
+                                                                className="p-1 text-slate-400 hover:text-primary hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                                                                title="Edit Komponen">
+                                                                <span className="material-symbols-outlined text-[17px]">
+                                                                  edit
+                                                                </span>
+                                                              </button>
+                                                              <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                  setDeleteConfirm({
+                                                                    type: "component",
+                                                                    id: comp.id,
+                                                                    title: `Komponen: ${comp.name}`,
+                                                                  })
+                                                                }
+                                                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                                                title="Hapus Komponen">
+                                                                <span className="material-symbols-outlined text-[17px]">
+                                                                  delete
+                                                                </span>
+                                                              </button>
+                                                            </div>
+                                                          ) : (
+                                                            <span className="text-slate-300">-</span>
+                                                          )}
                                                         </td>
                                                       </tr>
                                                     );

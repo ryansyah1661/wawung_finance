@@ -20,6 +20,17 @@ export default function MasterDataPage() {
   const [masterData, setMasterData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [programList, setProgramList] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>("superadmin");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const role = (localStorage.getItem("user_role") || "superadmin").toLowerCase();
+      setUserRole(role);
+    }
+  }, []);
+
+  const canManageRAB = ["superadmin", "director", "pm"].includes(userRole);
+  const canViewAccountBalance = ["superadmin", "director", "finance"].includes(userRole);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -184,12 +195,20 @@ export default function MasterDataPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="p-3 w-28">Kode / ID</th>
-                <th className="p-3">Nama {activeTab === "programs" ? "Program" : ""}</th>
+                <th className="p-3">Nama {activeTab === "programs" ? "Program" : activeTab === "accounts" ? "Akun Bank / Kas" : ""}</th>
                 {activeTab === "programs" ? (
                   <>
                     <th className="p-3 text-right">Anggaran</th>
                     <th className="p-3 text-right">Terpakai (Approved)</th>
                     <th className="p-3 text-right">Sisa Anggaran</th>
+                  </>
+                ) : activeTab === "accounts" ? (
+                  <>
+                    <th className="p-3">No. Rekening / Detail</th>
+                    <th className="p-3 text-right">Saldo Awal</th>
+                    <th className="p-3 text-right">Pemasukan</th>
+                    <th className="p-3 text-right">Pengeluaran</th>
+                    <th className="p-3 text-right">Saldo Saat Ini</th>
                   </>
                 ) : (
                   <th className="p-3">{activeTab === "purposes" ? "Program Terkait" : "Detail"}</th>
@@ -200,10 +219,10 @@ export default function MasterDataPage() {
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {loading ? (
-                <TableSkeleton columns={activeTab === "programs" ? 7 : 5} />
+                <TableSkeleton columns={activeTab === "programs" ? 7 : activeTab === "accounts" ? 9 : 5} />
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === "programs" ? 7 : 5} className="p-8 text-center text-slate-500">
+                  <td colSpan={activeTab === "programs" ? 7 : activeTab === "accounts" ? 9 : 5} className="p-8 text-center text-slate-500">
                     Belum ada data di kategori ini.
                   </td>
                 </tr>
@@ -235,6 +254,42 @@ export default function MasterDataPage() {
                           Rp {Number(item.remaining ?? (item.budget || 0)).toLocaleString("id-ID")}
                         </td>
                       </>
+                    ) : activeTab === "accounts" ? (
+                      <>
+                        <td className="p-3 text-slate-600 font-medium">{item.detail || item.code || "-"}</td>
+                        <td className="p-3 text-right font-mono text-slate-600">
+                          {canViewAccountBalance ? (
+                            `Rp ${Number(item.initial_balance ?? (item.budget || 0)).toLocaleString("id-ID")}`
+                          ) : (
+                            <span className="text-slate-400 font-mono tracking-widest text-xs" title="Khusus Director & Finance">••••••••</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-600 font-medium">
+                          {canViewAccountBalance ? (
+                            `+Rp ${Number(item.income || 0).toLocaleString("id-ID")}`
+                          ) : (
+                            <span className="text-slate-400 font-mono tracking-widest text-xs" title="Khusus Director & Finance">••••••••</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right font-mono text-rose-600 font-medium">
+                          {canViewAccountBalance ? (
+                            `-Rp ${Number(item.expense || 0).toLocaleString("id-ID")}`
+                          ) : (
+                            <span className="text-slate-400 font-mono tracking-widest text-xs" title="Khusus Director & Finance">••••••••</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold">
+                          {canViewAccountBalance ? (
+                            <span className="inline-block bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-md border border-emerald-200 shadow-2xs">
+                              Rp {Number(item.balance ?? (item.budget || 0)).toLocaleString("id-ID")}
+                            </span>
+                          ) : (
+                            <span className="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wider" title="Khusus Director & Finance">
+                              RESTRICTED
+                            </span>
+                          )}
+                        </td>
+                      </>
                     ) : (
                       <td className="p-3 text-slate-500">{item.detail || item.code || item.keterangan || "-"}</td>
                     )}
@@ -250,11 +305,11 @@ export default function MasterDataPage() {
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-center gap-1">
-                        {activeTab === "programs" && (
+                        {activeTab === "programs" && canManageRAB && (
                           <Link
                             href={`/master-data/project-rab/${item.id}`}
                             className="p-1.5 text-primary hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
-                            title="Kelola Struktur LFA & RAB">
+                            title="Kelola Struktur LFA & RAB (Superadmin, Director, PM)">
                             <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
                               account_tree
                             </span>
@@ -353,6 +408,33 @@ export default function MasterDataPage() {
                   <p className="text-[11px] text-slate-400 mt-1">
                     Total alokasi dana program. Dana ini otomatis terpotong saat ada pengajuan yang disetujui
                     (Approved).
+                  </p>
+                </div>
+              )}
+
+              {activeTab === "accounts" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Saldo Awal Kas / Bank (Rp)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">Rp</span>
+                    <input
+                      type="text"
+                      value={formData.budget}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        setFormData({
+                          ...formData,
+                          budget: raw ? Number(raw).toLocaleString("id-ID") : "",
+                        });
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-slate-900 font-mono font-bold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Saldo awal rekening bank atau kas fisik. Saldo saat ini otomatis diperbarui dari mutasi transaksi pemasukan & pengeluaran.
                   </p>
                 </div>
               )}

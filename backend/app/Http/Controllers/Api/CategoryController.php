@@ -29,7 +29,7 @@ class CategoryController extends Controller
 
         $categories = $query->latest()->get();
 
-        // Jika terdapat data tipe 'programs', hitung realisasi & sisa anggaran secara real-time
+        // Hitung real-time kalkulasi untuk 'programs' dan 'accounts' (Akun Bank/Kas)
         $categories->transform(function ($cat) {
             if ($cat->type === 'programs') {
                 $fundSpent = (float) FundRequest::whereRaw('LOWER(department) = ?', [strtolower(trim($cat->name))])
@@ -50,6 +50,28 @@ class CategoryController extends Controller
                 $cat->spent = $totalSpent;
                 $cat->remaining = max(0, $budget - $totalSpent);
             }
+
+            if ($cat->type === 'accounts') {
+                $accountName = strtolower(trim($cat->name));
+
+                // Hitung mutasi dari tabel transactions
+                $income = (float) Transaction::whereRaw('LOWER(TRIM(account)) = ?', [$accountName])
+                    ->whereRaw('LOWER(type) = ?', ['income'])
+                    ->sum('amount');
+
+                $expense = (float) Transaction::whereRaw('LOWER(TRIM(account)) = ?', [$accountName])
+                    ->whereRaw('LOWER(type) = ?', ['expense'])
+                    ->sum('amount');
+
+                $initialBalance = (float) ($cat->budget ?? 0);
+                $currentBalance = $initialBalance + $income - $expense;
+
+                $cat->initial_balance = $initialBalance;
+                $cat->income = $income;
+                $cat->expense = $expense;
+                $cat->balance = $currentBalance;
+            }
+
             return $cat;
         });
 

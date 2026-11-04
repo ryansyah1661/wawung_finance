@@ -629,9 +629,7 @@ export default function NewFundRequestPage() {
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-amber-700 text-base">task_alt</span>
-                  <span className="font-semibold text-amber-900">
-                    Aktivitas: {currentActivity.name}
-                  </span>
+                  <span className="font-semibold text-amber-900">Aktivitas: {currentActivity.name}</span>
                 </div>
                 <div className="font-mono text-amber-900 flex items-center gap-3">
                   <span>Pagu: Rp {Number(currentActivity.budget || 0).toLocaleString("id-ID")}</span>
@@ -651,12 +649,12 @@ export default function NewFundRequestPage() {
             <div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
-                Rincian Anggaran Biaya (RAB)
+                Rincian Detail Biaya
               </h3>
               {availableComponents.length > 0 && (
                 <p className="text-xs text-emerald-700 font-medium mt-0.5">
-                  ✓ Tersedia {availableComponents.length} komponen RAB dari aktivitas terpilih. Anda dapat memilihnya
-                  di kolom Komponen.
+                  ✓ Tersedia {availableComponents.length} komponen RAB dari aktivitas terpilih. Anda dapat memilihnya di
+                  kolom Komponen.
                 </p>
               )}
             </div>
@@ -674,9 +672,7 @@ export default function NewFundRequestPage() {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3 px-2 w-8 text-center">No.</th>
-                  {availableComponents.length > 0 && (
-                    <th className="py-3 px-2 min-w-[170px]">Pilih Dari RAB</th>
-                  )}
+                  {availableComponents.length > 0 && <th className="py-3 px-2 min-w-[170px]">Pilih Dari RAB</th>}
                   <th className="py-3 px-3 min-w-[190px]">Nama Komponen / Uraian</th>
                   <th className="py-3 px-2 w-20 text-center">Qty</th>
                   <th className="py-3 px-2 w-24">Satuan</th>
@@ -699,9 +695,7 @@ export default function NewFundRequestPage() {
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-slate-50/70 transition-colors ${
-                        isOverRemaining ? "bg-amber-50/40" : ""
-                      }`}>
+                      className={`hover:bg-slate-50/70 transition-colors ${isOverRemaining ? "bg-amber-50/40" : ""}`}>
                       <td className="py-2.5 px-2 text-center text-slate-400 font-medium">{index + 1}</td>
 
                       {/* Dropdown template RAB jika ada aktivitas yang dipilih */}
