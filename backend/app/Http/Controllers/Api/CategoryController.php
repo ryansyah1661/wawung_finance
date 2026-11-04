@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
-use App\Models\FundRequest;
-use App\Models\Reimbursement;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 
@@ -32,23 +30,17 @@ class CategoryController extends Controller
         // Hitung real-time kalkulasi untuk 'programs' dan 'accounts' (Akun Bank/Kas)
         $categories->transform(function ($cat) {
             if ($cat->type === 'programs') {
-                $fundSpent = (float) FundRequest::whereRaw('LOWER(department) = ?', [strtolower(trim($cat->name))])
-                    ->whereRaw('LOWER(status) = ?', ['approved'])
-                    ->sum('amount');
-
-                $reimbSpent = (float) Reimbursement::whereRaw('LOWER(department) = ?', [strtolower(trim($cat->name))])
-                    ->whereRaw('LOWER(status) = ?', ['approved'])
-                    ->sum('amount');
-
-                $trxSpent = (float) Transaction::whereRaw('LOWER(program) = ?', [strtolower(trim($cat->name))])
+                // Terpakai = HANYA dari transaksi pengeluaran (expense) yang sudah riil dicatat.
+                // BUKAN dari approval payment request (agar tidak double counting).
+                // Alur: PR approved -> belum dihitung terpakai -> transaksi pengeluaran dibuat -> baru dihitung.
+                $trxSpent = (float) Transaction::whereRaw('LOWER(TRIM(program)) = ?', [strtolower(trim($cat->name))])
                     ->whereRaw('LOWER(type) = ?', ['expense'])
                     ->sum('amount');
 
-                $totalSpent = $fundSpent + $reimbSpent + $trxSpent;
                 $budget = (float) ($cat->budget ?? 0);
 
-                $cat->spent = $totalSpent;
-                $cat->remaining = max(0, $budget - $totalSpent);
+                $cat->spent = $trxSpent;
+                $cat->remaining = $budget - $trxSpent;
             }
 
             if ($cat->type === 'accounts') {
