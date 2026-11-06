@@ -12,9 +12,14 @@ const STATUS_CONFIG: Record<
   { label: string; bg: string; text: string }
 > = {
   pending: {
-    label: "Pending Approval",
+    label: "Pending Review",
     bg: "bg-amber-50",
     text: "text-amber-700",
+  },
+  reviewed: {
+    label: "Reviewed",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
   },
   approved: {
     label: "Approved",
@@ -24,12 +29,10 @@ const STATUS_CONFIG: Record<
   rejected: { label: "Rejected", bg: "bg-rose-50", text: "text-rose-700" },
 };
 
-function formatRupiah(amount: number | string) {
-  const num =
-    typeof amount === "string"
-      ? parseInt(amount.replace(/\D/g, "") || "0", 10)
-      : amount;
-  return `Rp ${num.toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | string | undefined | null) {
+  if (amount === undefined || amount === null || amount === '') return 'Rp 0';
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+  return `Rp ${Math.round(num).toLocaleString("id-ID")}`;
 }
 
 export default function FundRequestsPage() {

@@ -8,7 +8,10 @@ export interface FundRequestPrintData {
   request_number?: string;
   applicant_name?: string;
   requester?: string;
+  applicant_role?: string;
   department?: string;
+  activity?: any;
+  activity_name?: string;
   purpose?: string;
   description?: string;
   amount: number | string;
@@ -16,6 +19,9 @@ export interface FundRequestPrintData {
   created_at?: string;
   status?: string;
   items?: any;
+  reviewer_name?: string;
+  finance_approver_name?: string;
+  pm_approver_name?: string;
 }
 
 export function printRabPdf(data: FundRequestPrintData) {
@@ -23,6 +29,18 @@ export function printRabPdf(data: FundRequestPrintData) {
   const applicant = data.applicant_name || data.requester || '-';
   const department = data.department || '-';
   const purpose = data.purpose || '-';
+
+  // Format Activity
+  const activityObj = data.activity;
+  let activityTitle = '-';
+  if (activityObj && typeof activityObj === 'object') {
+    activityTitle = activityObj.name || activityObj.code || '-';
+    if (activityObj.code && activityObj.name) {
+      activityTitle = `[${activityObj.code}] ${activityObj.name}`;
+    }
+  } else if (data.activity_name) {
+    activityTitle = data.activity_name;
+  }
 
   // Format Dates
   const needDateObj = data.need_date ? new Date(data.need_date) : new Date();
@@ -52,6 +70,7 @@ export function printRabPdf(data: FundRequestPrintData) {
   }
 
   // Fallback if no items list
+  const safeAmount = typeof data.amount === 'number' ? data.amount : parseFloat(String(data.amount)) || 0;
   if (!itemsList || itemsList.length === 0) {
     itemsList = [
       {
@@ -61,15 +80,51 @@ export function printRabPdf(data: FundRequestPrintData) {
         satuan: 'paket',
         freq: 1,
         satuan_freq: 'kegiatan',
-        biaya_satuan: Number(data.amount) || 0,
-        total: Number(data.amount) || 0,
+        biaya_satuan: safeAmount,
+        total: safeAmount,
         keterangan: data.description || '-',
         kode_kategori: '7',
       },
     ];
   }
 
-  const grandTotal = itemsList.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || (Number(data.amount) || 0);
+  // Hitung total dari items agar selalu sinkron dan akurat
+  const grandTotal = itemsList.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || safeAmount;
+
+  // Format Role Pemohon (Contoh: "Project Officer SURADIRA")
+  const roleName = (data.applicant_role || '').toLowerCase();
+  let baseRoleTitle = 'Project Officer';
+  if (roleName.includes('pm') || roleName.includes('manager')) {
+    baseRoleTitle = 'Project Manager';
+  } else if (roleName.includes('director')) {
+    baseRoleTitle = 'Director';
+  } else if (roleName.includes('finance')) {
+    baseRoleTitle = 'Finance';
+  }
+  const applicantPositionTitle = `${baseRoleTitle} ${department !== '-' ? department : ''}`.trim();
+
+  // Status check for approval
+  const statusLower = (data.status || '').toLowerCase();
+  const isReviewed = statusLower === 'reviewed' || statusLower === 'approved';
+  const isApproved = statusLower === 'approved';
+
+  const reviewerDisplay = data.reviewer_name
+    ? data.reviewer_name
+    : isReviewed
+      ? 'Kintan Nur Afrilita'
+      : '( ..................................... )';
+
+  const financeApproverDisplay = data.finance_approver_name
+    ? data.finance_approver_name
+    : isApproved
+      ? 'Yolan Yussy Sukaesih'
+      : '( ..................................... )';
+
+  const pmApproverDisplay = data.pm_approver_name
+    ? data.pm_approver_name
+    : isApproved
+      ? 'B. Jagat Patria'
+      : '( ..................................... )';
 
   // Generate table rows HTML
   const tableRowsHtml = itemsList
@@ -136,14 +191,14 @@ export function printRabPdf(data: FundRequestPrintData) {
           background: #fff;
         }
 
-        /* Top Header */
+        /* Top Header - Kop Kawungpitu ada di SEBELAH KANAN */
         .doc-header {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          border-bottom: 2px solid #70080b;
-          padding-bottom: 12px;
+          justify-content: flex-end;
+          margin-bottom: 8px;
+          border-bottom: 2.5px solid #70080b;
+          padding-bottom: 10px;
         }
         .doc-brand {
           display: flex;
@@ -155,41 +210,43 @@ export function printRabPdf(data: FundRequestPrintData) {
           height: 52px;
           object-fit: contain;
         }
+        .doc-brand-text {
+          text-align: left;
+        }
         .doc-brand-text h3 {
           margin: 0;
-          font-size: 16px;
+          font-size: 17px;
           font-weight: 800;
           color: #70080b;
           letter-spacing: -0.5px;
         }
         .doc-brand-text p {
           margin: 1px 0 0;
-          font-size: 10px;
+          font-size: 10.5px;
           font-weight: 700;
           color: #4b5563;
-          letter-spacing: 1px;
+          letter-spacing: 1.5px;
         }
 
-        .header-title {
-          text-align: right;
+        /* Tulisan Rancangan Anggaran Biaya di tengah dokumen di bawah garis */
+        .doc-title-centered {
+          text-align: center;
+          margin: 10px 0 14px 0;
         }
-        .header-title h1 {
-          font-size: 15px;
+        .doc-title-centered h1 {
+          font-size: 16px;
           font-weight: 900;
           margin: 0;
-          color: #111;
-          letter-spacing: 0.5px;
+          color: #111827;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
         }
-        .header-title h2 {
-          font-size: 12px;
+        .doc-title-centered h2 {
+          font-size: 11.5px;
           font-weight: 700;
-          margin: 2px 0 0;
-          color: #374151;
-        }
-        .header-title p {
-          font-size: 10px;
-          color: #6b7280;
-          margin: 2px 0 0;
+          margin: 3px 0 0;
+          color: #4b5563;
+          text-transform: uppercase;
         }
         
         .meta-table {
@@ -247,7 +304,7 @@ export function printRabPdf(data: FundRequestPrintData) {
           border-collapse: collapse;
           font-size: 9.5px;
           background: #fbfbfb;
-          shrink: 0;
+          flex-shrink: 0;
         }
         .category-legend th {
           background: #e5e7eb;
@@ -357,6 +414,7 @@ export function printRabPdf(data: FundRequestPrintData) {
         <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF</button>
       </div>
 
+      <!-- KOP KAWUNGPITU INSTITUTE DI SEBELAH KANAN ATAS -->
       <div class="doc-header">
         <div class="doc-brand">
           <img src="/images/kawung.png" class="doc-logo" alt="Logo Kawungpitu" onerror="this.style.display='none'" />
@@ -365,13 +423,15 @@ export function printRabPdf(data: FundRequestPrintData) {
             <p>INSTITUTE</p>
           </div>
         </div>
-        <div class="header-title">
-          <h1>RANCANGAN ANGGARAN BIAYA</h1>
-          <h2>PROGRAM ${department ? department.toUpperCase() : '- '}</h2>
-          <p>No. Pengajuan: <strong>${reqNumber}</strong></p>
-        </div>
       </div>
 
+      <!-- TULISAN RANCANGAN ANGGARAN BIAYA DI TENGAH-TENGAH DI BAWAH GARIS -->
+      <div class="doc-title-centered">
+        <h1>RANCANGAN ANGGARAN BIAYA</h1>
+        <h2>PROGRAM ${department ? department.toUpperCase() : '-'}</h2>
+      </div>
+
+      <!-- META TABLE: DENGAN KODE, NAMA/JABATAN, PROGRAM, AKTIVITAS, KEPERLUAN, TGL KEGIATAN -->
       <table class="meta-table">
         <tr>
           <td class="label">Kode</td>
@@ -379,7 +439,7 @@ export function printRabPdf(data: FundRequestPrintData) {
           <td><strong>${reqNumber}</strong></td>
         </tr>
         <tr>
-          <td class="label">Nama /Jabatan</td>
+          <td class="label">Nama / Jabatan</td>
           <td class="colon">:</td>
           <td><strong>${applicant}</strong></td>
         </tr>
@@ -387,6 +447,11 @@ export function printRabPdf(data: FundRequestPrintData) {
           <td class="label">Program</td>
           <td class="colon">:</td>
           <td><strong>${department}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Aktivitas</td>
+          <td class="colon">:</td>
+          <td><strong>${activityTitle}</strong></td>
         </tr>
         <tr>
           <td class="label">Keperluan</td>
@@ -397,11 +462,6 @@ export function printRabPdf(data: FundRequestPrintData) {
           <td class="label">Tanggal Kegiatan</td>
           <td class="colon">:</td>
           <td>${formattedNeedDate}</td>
-        </tr>
-        <tr>
-          <td class="label">Kategori Biaya</td>
-          <td class="colon">:</td>
-          <td>Kegiatan Operasional</td>
         </tr>
       </table>
 
@@ -456,28 +516,36 @@ export function printRabPdf(data: FundRequestPrintData) {
         </table>
       </div>
 
+      <!-- TANDA TANGAN (4 KOLOM) -->
       <div class="signatures-section">
         <div class="sig-date">Bogor, ${formattedCreatedDate}</div>
         <div class="sig-grid">
+          <!-- 1. DIAJUKAN OLEH -->
           <div class="sig-col">
             <div class="sig-role-title">Diajukan oleh,</div>
             <div class="sig-name">${applicant.split('/')[0].trim()}</div>
-            <div class="sig-position">${department}</div>
+            <div class="sig-position">${applicantPositionTitle}</div>
           </div>
+
+          <!-- 2. DIPERIKSA OLEH (FINANCE PROGRAM) -->
           <div class="sig-col">
             <div class="sig-role-title">Diperiksa oleh,</div>
-            <div class="sig-name">Kintan Nur Afrilita</div>
-            <div class="sig-position">Finance Admin</div>
+            <div class="sig-name">${reviewerDisplay}</div>
+            <div class="sig-position">Finance Program</div>
           </div>
+
+          <!-- 3. DISETUJUI OLEH (FINANCE KAWUNGPITU INSTITUTE) -->
           <div class="sig-col">
             <div class="sig-role-title">Disetujui oleh,</div>
-            <div class="sig-name">Yolan Yussy Sukaesih</div>
-            <div class="sig-position">Pengelola Dana Operasional</div>
+            <div class="sig-name">${financeApproverDisplay}</div>
+            <div class="sig-position">Finance Kawungpitu Institute</div>
           </div>
+
+          <!-- 4. DISETUJUI OLEH (PROJECT MANAGER) -->
           <div class="sig-col">
             <div class="sig-role-title">Disetujui oleh,</div>
-            <div class="sig-name">B. Jagat Patria</div>
-            <div class="sig-position">Koordinator Kegiatan</div>
+            <div class="sig-name">${pmApproverDisplay}</div>
+            <div class="sig-position">Project Manager</div>
           </div>
         </div>
       </div>

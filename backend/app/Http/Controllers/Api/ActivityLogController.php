@@ -36,12 +36,19 @@ class ActivityLogController extends Controller
     // Helper static function untuk mencatat log otomatis dari controller lain
     public static function log($action, $description)
     {
-        ActivityLog::create([
-            'user_id' => auth()->id(),
-            'user_name' => auth()->user()?->name ?? 'System',
-            'action' => $action,
-            'description' => $description,
-            'ip_address' => request()->ip(),
-        ]);
+        try {
+            $allowedActions = ['create', 'update', 'approve', 'reject', 'delete', 'login'];
+            $safeAction = in_array($action, $allowedActions) ? $action : 'update';
+
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'user_name' => auth()->user()?->name ?? 'System',
+                'action' => $safeAction,
+                'description' => $description,
+                'ip_address' => request()->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("ActivityLog failed: " . $e->getMessage());
+        }
     }
 }

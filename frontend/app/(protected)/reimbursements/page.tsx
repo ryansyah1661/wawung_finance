@@ -11,9 +11,10 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   rejected: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700' },
 };
 
-function formatRupiah(amount: number | string) {
-  const num = typeof amount === 'string' ? parseInt(amount.replace(/\D/g, '') || '0', 10) : amount;
-  return `Rp ${(num || 0).toLocaleString('id-ID')}`;
+function formatRupiah(amount: number | string | undefined | null) {
+  if (amount === undefined || amount === null || amount === '') return 'Rp 0';
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+  return `Rp ${Math.round(num).toLocaleString('id-ID')}`;
 }
 
 export default function ReimbursementsPage() {
@@ -117,7 +118,10 @@ export default function ReimbursementsPage() {
   const rejectedCount = safeRequests.filter(r => r.status?.toLowerCase() === 'rejected').length;
   const approvedAmount = safeRequests
     .filter(r => r.status?.toLowerCase() === 'approved')
-    .reduce((sum, r) => sum + parseInt(String(r.amount || 0).replace(/\D/g, '') || '0', 10), 0);
+    .reduce((sum, r) => {
+      const amt = typeof r.amount === 'number' ? r.amount : parseFloat(String(r.amount)) || 0;
+      return sum + amt;
+    }, 0);
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">

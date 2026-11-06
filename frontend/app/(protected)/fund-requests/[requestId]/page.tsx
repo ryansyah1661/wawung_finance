@@ -6,16 +6,19 @@ import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { printRabPdf } from '@/lib/printRabPdf';
+import api from '@/lib/api';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: string }> = {
-  pending: { label: 'Pending Approval', bg: 'bg-amber-50', text: 'text-amber-700', icon: 'pending_actions' },
-  approved: { label: 'Disetujui', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: 'check_circle' },
-  rejected: { label: 'Ditolak', bg: 'bg-rose-50', text: 'text-rose-700', icon: 'cancel' },
+  pending: { label: 'Pending Review', bg: 'bg-amber-50', text: 'text-amber-700', icon: 'pending_actions' },
+  reviewed: { label: 'Sudah Diperiksa (Reviewed)', bg: 'bg-blue-50', text: 'text-blue-700', icon: 'fact_check' },
+  approved: { label: 'Disetujui (Approved)', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: 'check_circle' },
+  rejected: { label: 'Ditolak (Rejected)', bg: 'bg-rose-50', text: 'text-rose-700', icon: 'cancel' },
 };
 
-function formatRupiah(amount: number | string) {
-  const num = typeof amount === 'string' ? parseInt(amount.replace(/\D/g, '') || '0', 10) : amount;
-  return `Rp ${num.toLocaleString('id-ID')}`;
+function formatRupiah(amount: number | string | undefined | null) {
+  if (amount === undefined || amount === null || amount === '') return 'Rp 0';
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+  return `Rp ${Math.round(num).toLocaleString('id-ID')}`;
 }
 
 export default function FundRequestDetailPage({ params }: { params: Promise<{ requestId: string }> }) {
@@ -26,10 +29,25 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Approval modal
+  // Separate error state for approval/review actions (does NOT replace the whole page)
+  const [actionErrorMsg, setActionErrorMsg] = useState('');
+
+  // User role & name from localStorage
+  const [currentUserName, setCurrentUserName] = useState('');
+  const [currentUserRole, setCurrentUserRole] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUserName(localStorage.getItem('user_name') || '');
+      setCurrentUserRole((localStorage.getItem('user_role') || '').toLowerCase());
+    }
+  }, []);
+
+  // Approval / Review modal
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [approvalAction, setApprovalAction] = useState<'Approved' | 'Rejected'>('Approved');
+  const [approvalAction, setApprovalAction] = useState<'Approved' | 'Rejected' | 'Reviewed'>('Approved');
   const [approvalNote, setApprovalNote] = useState('');
+  const [reviewerNameInput, setReviewerNameInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Success modal
@@ -41,12 +59,11 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
     try {
       setIsLoading(true);
       setErrorMsg('');
-      const res = await fetch(`/api/fund-requests/${requestId}`);
-      if (!res.ok) throw new Error('Gagal mengambil data');
-      const json = await res.json();
+      const res = await api.get(`/fund-requests/${requestId}`);
+      const json = res.data;
       setData(json.data || json);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Data tidak ditemukan');
+      setErrorMsg(err?.response?.data?.message || err.message || 'Data tidak ditemukan');
     } finally {
       setIsLoading(false);
     }
@@ -59,24 +76,34 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   const handleApproval = async () => {
     try {
       setIsSubmitting(true);
-      const res = await fetch(`/api/fund-requests/${requestId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: approvalAction,
-          approval_note: approvalNote,
-        }),
-      });
+      setActionErrorMsg('');
+      const payload: any = {
+        status: approvalAction,
+        approval_note: approvalNote,
+      };
 
-      if (!res.ok) throw new Error('Gagal mengubah status');
+      if (approvalAction === 'Reviewed') {
+        payload.reviewer_name = reviewerNameInput || currentUserName || 'Finance Program';
+      } else if (approvalAction === 'Approved') {
+        if (currentUserRole.includes('pm') || currentUserRole.includes('manager')) {
+          payload.pm_approver_name = currentUserName || 'B. Jagat Patria';
+        } else {
+          payload.finance_approver_name = currentUserName || 'Yolan Yussy Sukaesih';
+        }
+      }
+
+      await api.patch(`/fund-requests/${requestId}/status`, payload);
 
       setShowApprovalModal(false);
       setApprovalNote('');
+      setReviewerNameInput('');
       setSuccessModal({
         show: true,
         message: approvalAction === 'Approved'
           ? 'Pengajuan berhasil disetujui.'
-          : 'Pengajuan telah ditolak.',
+          : approvalAction === 'Reviewed'
+            ? 'Pengajuan berhasil ditandai sebagai Diperiksa (Reviewed).'
+            : 'Pengajuan telah ditolak.',
       });
       fetchDetail();
       
@@ -84,7 +111,9 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
         setSuccessModal({ show: false, message: '' });
       }, 1500);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Terjadi kesalahan');
+      // Use separate actionErrorMsg so the detail page stays visible
+      const msg = err?.response?.data?.message || err.message || 'Terjadi kesalahan saat mengubah status';
+      setActionErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -93,11 +122,10 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   const handleDelete = async () => {
     if (!confirm('Apakah Anda yakin ingin menghapus pengajuan ini?')) return;
     try {
-      const res = await fetch(`/api/fund-requests/${requestId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Gagal menghapus');
+      await api.delete(`/fund-requests/${requestId}`);
       router.push('/fund-requests');
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus');
+      alert(err?.response?.data?.message || err.message || 'Gagal menghapus');
     }
   };
 
@@ -120,6 +148,13 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   const statusKey = (data.status || 'pending').toLowerCase();
   const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
   const isPending = statusKey === 'pending';
+  const isReviewed = statusKey === 'reviewed';
+  const canApproveOrReview = isPending || isReviewed;
+
+  // Total biaya dihitung konsisten dari items RAB
+  const itemsTotal = Array.isArray(data.items) && data.items.length > 0
+    ? data.items.reduce((sum: number, it: any) => sum + (Number(it.total) || 0), 0)
+    : (typeof data.amount === 'number' ? data.amount : parseFloat(String(data.amount)) || 0);
   const displayDate = data.need_date
     ? new Date(data.need_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     : '-';
@@ -152,8 +187,22 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
             <span className="material-symbols-outlined text-rose-600" style={{ fontSize: '18px' }}>picture_as_pdf</span>
             Download PDF RAB
           </button>
-          {isPending && (
+          {canApproveOrReview && (
             <>
+              {isPending && (
+                <button
+                  onClick={() => { 
+                    setApprovalAction('Reviewed'); 
+                    setReviewerNameInput(currentUserName || 'Finance Program');
+                    setShowApprovalModal(true); 
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700 transition-colors px-3.5 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm font-semibold"
+                  title="Tandai telah diperiksa oleh Finance Program"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>fact_check</span>
+                  Periksa (Review)
+                </button>
+              )}
               <button
                 onClick={() => { setApprovalAction('Approved'); setShowApprovalModal(true); }}
                 className="bg-emerald-600 text-white hover:bg-emerald-700 transition-colors px-4 py-2 rounded-lg flex items-center gap-2 text-sm cursor-pointer shadow-sm font-semibold"
@@ -180,14 +229,22 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
       </div>
 
       {/* Status Banner */}
-      <div className={`${status.bg} border rounded-xl p-4 flex items-center gap-3`}>
-        <span className={`material-symbols-outlined text-[24px] ${status.text}`}>{status.icon}</span>
-        <div>
-          <span className={`text-sm font-bold ${status.text}`}>{status.label}</span>
-          {data.approval_note && (
-            <p className="text-xs text-slate-600 mt-0.5">Catatan: {data.approval_note}</p>
-          )}
+      <div className={`${status.bg} border rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap`}>
+        <div className="flex items-center gap-3">
+          <span className={`material-symbols-outlined text-[24px] ${status.text}`}>{status.icon}</span>
+          <div>
+            <span className={`text-sm font-bold ${status.text}`}>{status.label}</span>
+            {data.approval_note && (
+              <p className="text-xs text-slate-600 mt-0.5">Catatan: {data.approval_note}</p>
+            )}
+          </div>
         </div>
+        {data.reviewer_name && (
+          <div className="text-xs text-blue-800 bg-blue-100/70 border border-blue-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">verified</span>
+            <span>Diperiksa oleh: <strong>{data.reviewer_name}</strong> (Finance Program)</span>
+          </div>
+        )}
       </div>
 
       {/* Detail Cards */}
@@ -245,7 +302,7 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Jumlah Pengajuan</h3>
-            <p className="text-3xl font-bold text-slate-900 font-mono">{formatRupiah(data.amount)}</p>
+            <p className="text-3xl font-bold text-slate-900 font-mono">{formatRupiah(itemsTotal)}</p>
           </div>
 
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
@@ -355,7 +412,7 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
                   </td>
                   <td className="py-3.5 px-3 text-right">
                     <span className="font-mono font-bold text-primary text-sm">
-                      {formatRupiah(data.amount)}
+                      {formatRupiah(itemsTotal)}
                     </span>
                   </td>
                   <td colSpan={2}></td>
@@ -372,7 +429,11 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-900">
-                {approvalAction === 'Approved' ? 'Setujui Pengajuan' : 'Tolak Pengajuan'}
+                {approvalAction === 'Approved'
+                  ? 'Setujui Pengajuan'
+                  : approvalAction === 'Reviewed'
+                    ? 'Pemeriksaan Pengajuan (Review)'
+                    : 'Tolak Pengajuan'}
               </h3>
               <button
                 onClick={() => setShowApprovalModal(false)}
@@ -382,17 +443,49 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className={`p-4 rounded-xl flex items-center gap-3 ${approvalAction === 'Approved' ? 'bg-emerald-50' : 'bg-rose-50'}`}>
-                <span className={`material-symbols-outlined text-[24px] ${approvalAction === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {approvalAction === 'Approved' ? 'check_circle' : 'cancel'}
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                approvalAction === 'Approved'
+                  ? 'bg-emerald-50'
+                  : approvalAction === 'Reviewed'
+                    ? 'bg-blue-50'
+                    : 'bg-rose-50'
+              }`}>
+                <span className={`material-symbols-outlined text-[24px] ${
+                  approvalAction === 'Approved'
+                    ? 'text-emerald-600'
+                    : approvalAction === 'Reviewed'
+                      ? 'text-blue-600'
+                      : 'text-rose-600'
+                }`}>
+                  {approvalAction === 'Approved'
+                    ? 'check_circle'
+                    : approvalAction === 'Reviewed'
+                      ? 'fact_check'
+                      : 'cancel'}
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {data.request_number} — {formatRupiah(data.amount)}
+                    {data.request_number} — {formatRupiah(itemsTotal)}
                   </p>
                   <p className="text-xs text-slate-500">Pemohon: {data.applicant_name}</p>
                 </div>
               </div>
+
+              {approvalAction === 'Reviewed' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Nama Pemeriksa (Finance Program)
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewerNameInput}
+                    onChange={(e) => setReviewerNameInput(e.target.value)}
+                    placeholder="Masukkan nama pemeriksa..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm font-medium"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Nama ini akan dicantumkan pada kolom tanda tangan 'Diperiksa oleh' di dokumen PDF RAB.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -419,12 +512,18 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
                   className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors shadow-sm cursor-pointer disabled:opacity-50 ${
                     approvalAction === 'Approved'
                       ? 'bg-emerald-600 hover:bg-emerald-700'
-                      : 'bg-rose-600 hover:bg-rose-700'
+                      : approvalAction === 'Reviewed'
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-rose-600 hover:bg-rose-700'
                   }`}
                 >
                   {isSubmitting
                     ? 'Memproses...'
-                    : approvalAction === 'Approved' ? 'Ya, Setujui' : 'Ya, Tolak'}
+                    : approvalAction === 'Approved'
+                      ? 'Ya, Setujui'
+                      : approvalAction === 'Reviewed'
+                        ? 'Tandai Diperiksa'
+                        : 'Ya, Tolak'}
                 </button>
               </div>
             </div>
@@ -447,17 +546,17 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
         </div>
       )}
 
-      {/* Error Modal */}
-      {errorMsg && (
+      {/* Action Error Modal (from approval/review actions - does NOT replace the page) */}
+      {actionErrorMsg && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in-95 duration-300">
             <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-[32px]">warning</span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Pemberitahuan</h3>
-            <p className="text-sm text-slate-500 mb-6">{errorMsg}</p>
+            <p className="text-sm text-slate-500 mb-6">{actionErrorMsg}</p>
             <button
-              onClick={() => setErrorMsg('')}
+              onClick={() => setActionErrorMsg('')}
               className="w-full py-2.5 bg-primary text-white font-semibold rounded-xl hover:brightness-110 transition-colors cursor-pointer"
             >
               Mengerti

@@ -24,6 +24,10 @@ class FundRequest extends Model
         'attachment',
         'status',
         'approval_note',
+        'reviewer_name',
+        'finance_approver_name',
+        'pm_approver_name',
+        'reviewed_at',
     ];
 
     protected $casts = [

@@ -127,24 +127,48 @@ class FundRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'status'        => 'required|in:Approved,Rejected,Pending',
-            'approval_note' => 'nullable|string',
+            'status'                => 'required|in:Approved,Rejected,Pending,Reviewed,approved,rejected,pending,reviewed',
+            'approval_note'         => 'nullable|string',
+            'reviewer_name'         => 'nullable|string',
+            'finance_approver_name' => 'nullable|string',
+            'pm_approver_name'      => 'nullable|string',
         ]);
 
-        $fundRequest->update([
-            'status'        => $validated['status'],
+        // Normalisasi status ke Title Case (Approved, Rejected, Pending, Reviewed)
+        $statusCapitalized = ucfirst(strtolower($validated['status']));
+
+        $updateData = [
+            'status'        => $statusCapitalized,
             'approval_note' => $validated['approval_note'] ?? $fundRequest->approval_note,
-        ]);
+        ];
+
+        if (!empty($validated['reviewer_name'])) {
+            $updateData['reviewer_name'] = $validated['reviewer_name'];
+            $updateData['reviewed_at'] = now();
+        } elseif ($statusCapitalized === 'Reviewed') {
+            $updateData['reviewed_at'] = now();
+        }
+
+        if (!empty($validated['finance_approver_name'])) {
+            $updateData['finance_approver_name'] = $validated['finance_approver_name'];
+        }
+
+        if (!empty($validated['pm_approver_name'])) {
+            $updateData['pm_approver_name'] = $validated['pm_approver_name'];
+        }
+
+        $fundRequest->update($updateData);
 
         // Tentukan jenis action dan deskripsi sesuai status
-        $action = match ($validated['status']) {
+        $action = match ($statusCapitalized) {
             'Approved' => 'approve',
-            'Rejected' => 'reject',
+                        'Rejected' => 'reject',
             default    => 'update',
         };
 
-        $statusText = match ($validated['status']) {
+        $statusText = match ($statusCapitalized) {
             'Approved' => 'Menyetujui',
+            'Reviewed' => 'Memeriksa (Review)',
             'Rejected' => 'Menolak',
             default    => 'Mengubah status',
         };
