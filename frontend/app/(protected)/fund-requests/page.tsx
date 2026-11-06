@@ -46,6 +46,19 @@ export default function FundRequestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Delete Confirmation Modal
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; id: string; requestNumber: string }>({
+    show: false,
+    id: '',
+    requestNumber: '',
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [infoModal, setInfoModal] = useState<{ show: boolean; title: string; message: string }>({
+    show: false,
+    title: '',
+    message: '',
+  });
+
   // Fetch Data dari API Backend
   const fetchData = async () => {
     try {
@@ -73,16 +86,31 @@ export default function FundRequestsPage() {
     fetchData();
   }, []);
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
-    if (!confirm("Apakah Anda yakin ingin menghapus pengajuan ini?")) return;
+    setDeleteModal({
+      show: true,
+      id: String(item.id),
+      requestNumber: item.request_number || `#${item.id}`,
+    });
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await api.delete(`/fund-requests/${id}`);
-
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setIsDeleting(true);
+      await api.delete(`/fund-requests/${deleteModal.id}`);
+      setRequests((prev) => prev.filter((r) => String(r.id) !== deleteModal.id));
+      setDeleteModal({ show: false, id: '', requestNumber: '' });
     } catch (err: any) {
-      alert(err.message || "Gagal menghapus data");
+      setDeleteModal({ show: false, id: '', requestNumber: '' });
+      setInfoModal({
+        show: true,
+        title: 'Gagal Menghapus',
+        message: err?.response?.data?.message || err.message || 'Gagal menghapus data dari server.',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -388,8 +416,10 @@ export default function FundRequestsPage() {
                       </td>
                       <td className="p-3 text-center flex justify-end gap-2">
                         <button
-                          onClick={(e) => handleDelete(e, item.id)}
-                          className="text-slate-400 hover:text-rose-500 transition-colors"
+                          type="button"
+                          onClick={(e) => handleDelete(e, item)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Hapus Pengajuan"
                         >
                           <span
                             className="material-symbols-outlined"
@@ -444,6 +474,63 @@ export default function FundRequestsPage() {
           </div>
         </div>
       </div>
+      {/* Confirm Delete Modal */}
+      {deleteModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">delete_forever</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Hapus Pengajuan Dana?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Apakah Anda yakin ingin menghapus pengajuan <strong className="text-slate-700">{deleteModal.requestNumber}</strong>? Data yang sudah dihapus tidak dapat dikembalikan.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModal({ show: false, id: '', requestNumber: '' })}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info/Error Modal */}
+      {infoModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">warning</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">{infoModal.title}</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">{infoModal.message}</p>
+              <button
+                type="button"
+                onClick={() => setInfoModal({ show: false, message: '', title: '' })}
+                className="w-full py-2.5 bg-primary text-white font-semibold rounded-xl hover:brightness-110 transition-colors cursor-pointer"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

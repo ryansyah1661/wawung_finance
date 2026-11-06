@@ -44,6 +44,9 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
   }, []);
 
   // Approval / Review modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'Approved' | 'Rejected' | 'Reviewed'>('Approved');
   const [approvalNote, setApprovalNote] = useState('');
@@ -119,13 +122,21 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Apakah Anda yakin ingin menghapus pengajuan ini?')) return;
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
     try {
+      setIsDeleting(true);
       await api.delete(`/fund-requests/${requestId}`);
+      setShowDeleteModal(false);
       router.push('/fund-requests');
     } catch (err: any) {
-      alert(err?.response?.data?.message || err.message || 'Gagal menghapus');
+      setShowDeleteModal(false);
+      setActionErrorMsg(err?.response?.data?.message || err.message || 'Gagal menghapus pengajuan dana.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -541,6 +552,41 @@ export default function FundRequestDetailPage({ params }: { params: Promise<{ re
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Berhasil!</h3>
               <p className="text-sm text-slate-500 leading-relaxed mb-2">{successModal.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-[32px]">delete_forever</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Hapus Pengajuan Dana?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Apakah Anda yakin ingin menghapus pengajuan <strong className="text-slate-700">{data?.request_number || `#${data?.id}`}</strong>? Data yang sudah dihapus tidak dapat dikembalikan.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
